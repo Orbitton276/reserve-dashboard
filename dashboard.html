@@ -13,9 +13,12 @@
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, sans-serif; }
   main { max-width:1000px; margin:0 auto; padding:16px; }
-  nav { display:flex; gap:8px; margin-bottom:12px; }
-  nav a { padding:8px 14px; border-radius:8px; text-decoration:none; color:var(--fg); border:1px solid var(--line); background:var(--card); font-weight:600; font-size:15px; }
-  nav a.active { background:var(--head); color:var(--headfg); border-color:var(--head); }
+  header.site { background:var(--head); color:var(--headfg); }
+  header.site .in { max-width:1000px; margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:24px; height:52px; }
+  header.site .brand { font-weight:700; font-size:18px; margin-inline-end:8px; }
+  header.site a { color:rgba(255,255,255,.75); text-decoration:none; font-size:15px; height:100%; display:flex; align-items:center; border-bottom:3px solid transparent; }
+  header.site a:hover { color:#fff; }
+  header.site a.active { color:#fff; border-bottom-color:#fff; }
   h1 { font-size:20px; margin:0 0 12px; }
   .filters { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
   input, select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
@@ -23,7 +26,8 @@
   .bar { display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px; }
   .meta { color:var(--muted); font-size:14px; }
   button.link { background:none; border:0; color:var(--muted); text-decoration:underline; font-size:14px; cursor:pointer; padding:0; }
-  .tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin:12px 0; }
+  .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:12px 0; }
+  .tile .sub { font-size:12px; opacity:.85; }
   .tile { background:var(--head); color:var(--headfg); border-radius:10px; padding:12px; text-align:center; }
   .tile b { display:block; font-size:28px; line-height:1.1; }
   .tile span { font-size:13px; opacity:.85; }
@@ -38,15 +42,17 @@
   .card .chips .warn { color:var(--warn); font-weight:600; }
   .empty, .error { text-align:center; color:var(--muted); padding:32px 0; }
   .error { color:#c0392b; }
-  @media (max-width:560px) { .filters { grid-template-columns:1fr; } .tiles { grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:560px) { .filters { grid-template-columns:1fr; } .tiles { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
+<header class="site"><div class="in">
+  <span class="brand">Reserve</span>
+  <a href="index.html">לפי אדם</a>
+  <a href="dashboard.html" class="active">לוח מחוונים</a>
+  <a href="check.html">בדיקת קיום</a>
+</div></header>
 <main>
-  <nav>
-    <a href="index.html">לפי אדם</a>
-    <a href="dashboard.html" class="active">לוח מחוונים</a>
-  </nav>
   <h1>Reserve Dashboard</h1>
   <div class="filters">
     <input id="q" type="search" placeholder="Search item" autocomplete="off">
@@ -95,20 +101,17 @@
     });
   }
 
-  // One row's quantity goes into exactly one bucket.
-  //   issued   = in the person's hands
-  //   listed   = committed to a person but not handed over (a partly-handed bulk line counts here)
-  //   store    = with nobody
-  function bucket(r) {
-    if (r.custody === "store") return "store";
-    if (r.custody === "issued") return "issued";
-    return "listed";
-  }
-  const zero = () => ({ total: 0, issued: 0, listed: 0, store: 0 });
+  // Two places only: in somebody's hands, or in storage.
+  //   issued = in the person's hands
+  //   store  = in storage. That is nobody's, plus anything registered to a person but never handed over.
+  //   listed = the part of "store" that is registered to a person (shown as a note, not counted twice)
+  const zero = () => ({ total: 0, issued: 0, store: 0, listed: 0 });
   function add(t, r) {
     const n = Number(r.quantity) || 0;
     t.total += n;
-    t[bucket(r)] += n;
+    if (r.custody === "issued") { t.issued += n; return; }
+    t.store += n;
+    if (r.custody !== "store") t.listed += n;
   }
 
   function render() {
@@ -137,11 +140,12 @@
     }
 
     tilesEl.innerHTML = [
-      [all.total, "סה״כ"], [all.issued, "נמסר"], [all.listed, "לא נמסר"], [all.store, "במחסן"]
-    ].map(([n, l]) => `<div class="tile"><b>${n}</b><span>${l}</span></div>`).join("");
+      [all.total, "סה״כ", ""], [all.issued, "בידיים (נמסר)", ""],
+      [all.store, "במחסן", all.listed ? `מתוכם ${all.listed} רשומים על אדם, לא נמסרו` : ""]
+    ].map(([n, l, sub]) => `<div class="tile"><b>${n}</b><span>${l}</span>${sub ? `<br><span class="sub">${sub}</span>` : ""}</div>`).join("");
 
     metaEl.textContent = `${byInv.size} inventories`;
-    noteEl.textContent = dep ? "Items in storage have no department, so they are not counted when a department is selected." : "";
+    noteEl.textContent = dep ? "Items registered to nobody have no department, so they are not counted when a department is selected." : "";
     if (!filtered.length) { listEl.innerHTML = '<div class="empty">Nothing to show</div>'; return; }
 
     listEl.innerHTML = [...byInv.entries()].sort((a, b) => cmp(a[0], b[0])).map(([label, g]) => {
@@ -153,9 +157,9 @@
             <div class="name" title="${esc(name)}">${esc(name)}</div>
             <div class="total">${t.total}</div>
             <div class="chips">
-              <span>נמסר ${t.issued}</span>
-              <span class="${t.listed ? "warn" : ""}">לא נמסר ${t.listed}</span>
+              <span>בידיים ${t.issued}</span>
               <span>במחסן ${t.store}</span>
+              ${t.listed ? `<span class="warn">מתוכם רשום על אדם ${t.listed}</span>` : ""}
             </div>
           </div>`).join("");
       return `<div class="section">

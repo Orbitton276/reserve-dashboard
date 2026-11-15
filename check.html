@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en" dir="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reserve Existence Check</title>
+<style>
+  /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --ok:#3d7a37; --bad:#b42318; --store:#8a5a00; --storebg:rgba(245,158,11,.14); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121412; --fg:#eceee8; --muted:#a3a99a; --line:#2b2f27; --head:#444C38; --headfg:#fff; --card:#1b1e19; --sub:rgba(68,76,56,.35); --ok:#6fbf66; --bad:#f97066; --store:#f5b94a; --storebg:rgba(245,158,11,.16); }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, sans-serif; }
+  header.site { background:var(--head); color:var(--headfg); }
+  header.site .in { max-width:1000px; margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:24px; height:52px; }
+  header.site .brand { font-weight:700; font-size:18px; margin-inline-end:8px; }
+  header.site a { color:rgba(255,255,255,.75); text-decoration:none; font-size:15px; height:100%; display:flex; align-items:center; border-bottom:3px solid transparent; }
+  header.site a:hover { color:#fff; }
+  header.site a.active { color:#fff; border-bottom-color:#fff; }
+  main { max-width:1000px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 12px; }
+  h2 { font-size:16px; margin:24px 0 8px; }
+  .filters { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  label.f { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  input[type=date], select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  input:focus, select:focus { outline:2px solid var(--head); outline-offset:1px; }
+  details.track { margin:12px 0; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+  details.track summary { cursor:pointer; padding:10px 12px; font-weight:600; }
+  details.track .inner { padding:0 12px 12px; }
+  .tbtns { display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 10px; }
+  .tbtns button { padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font-size:14px; cursor:pointer; }
+  .tcols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .tcols h3 { font-size:13px; color:var(--muted); margin:0 0 6px; font-weight:600; }
+  .tcols label { display:flex; gap:8px; align-items:center; padding:3px 0; font-size:15px; cursor:pointer; }
+  .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:16px 0 8px; }
+  .tile { background:var(--head); color:var(--headfg); border-radius:10px; padding:12px; text-align:center; }
+  .tile.bad { background:var(--bad); }
+  .tile b { display:block; font-size:28px; line-height:1.1; }
+  .tile span { font-size:13px; opacity:.9; }
+  .bar { height:10px; background:var(--sub); border-radius:99px; overflow:hidden; margin:8px 0; }
+  .bar i { display:block; height:100%; background:var(--ok); }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  th, td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:start; }
+  th { font-size:13px; color:var(--muted); font-weight:600; }
+  td.n { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td .bar { margin:0; min-width:80px; }
+  .miss { color:var(--bad); font-weight:600; }
+  .group { margin:12px 0; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  .ghead { display:flex; justify-content:space-between; gap:12px; background:var(--head); color:var(--headfg); padding:10px 12px; font-weight:bold; }
+  .group.store { border:2px solid var(--store); }
+  .group.store .ghead { background:var(--store); color:#fff; }
+  .group.store .ghead span:first-child::before { content:"\1F3E0  "; }
+  .item { display:flex; justify-content:space-between; gap:12px; padding:9px 12px; border-top:1px solid var(--line); }
+  .item small { color:var(--muted); }
+  .item .reg { color:var(--store); font-weight:600; }
+  .note { color:var(--muted); font-size:14px; margin:4px 0 8px; }
+  .done { text-align:center; padding:24px; color:var(--ok); font-weight:600; }
+  .empty, .error { text-align:center; color:var(--muted); padding:32px 0; }
+  .error { color:var(--bad); }
+  @media (max-width:640px) { .filters { grid-template-columns:1fr; } .tcols { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="site"><div class="in">
+  <span class="brand">Reserve</span>
+  <a href="index.html">לפי אדם</a>
+  <a href="dashboard.html">לוח מחוונים</a>
+  <a href="check.html" class="active">בדיקת קיום</a>
+</div></header>
+<main>
+  <h1>Existence check</h1>
+  <div class="filters">
+    <div><label class="f" for="since">Reported at least once since</label><input id="since" type="date"></div>
+    <div><label class="f" for="dep">Department</label><select id="dep"><option value="">All departments</option></select></div>
+    <div><label class="f" for="inv">Inventory</label><select id="inv"><option value="">All inventories</option></select></div>
+  </div>
+
+  <details class="track" id="trackBox">
+    <summary id="trackSummary">Tracked items</summary>
+    <div class="inner">
+      <div class="tbtns">
+        <button type="button" id="selSerial">Serial only (default)</button>
+        <button type="button" id="selAll">All</button>
+        <button type="button" id="selNone">None</button>
+      </div>
+      <div class="tcols">
+        <div><h3>Serial</h3><div id="tSerial"></div></div>
+        <div><h3>Non-serial (cannot be reported yet)</h3><div id="tBulk"></div></div>
+      </div>
+    </div>
+  </details>
+
+  <div class="tiles" id="tiles"></div>
+  <div class="bar"><i id="fill" style="width:0"></i></div>
+  <div class="note" id="meta"></div>
+
+  <div id="body"><div class="empty">Loading...</div></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // Publishable key is public by design. It can only read the unit_report_check_v view.
+  const SUPABASE_URL = "https://bqibfhhhthfzawzkpsdr.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_NYRPrV7chJz-X5MTfyTr9Q_caqJ7A4v";
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const STORE = "במחסן";
+  const NO_INV = "Other";
+  const LS_KEY = "reserve.check.tracked.v1";
+  const $ = id => document.getElementById(id);
+  let rows = [];           // serial units, from unit_report_check_v
+  let bulkRows = [];       // non-serial lines, from inventory_holdings_v (counts only)
+  let types = [];          // [{id, name, tracking}], id = "s|name" or "b|name"
+  let sel = {};            // item_type_id -> true/false; absent = default (serial on, non-serial off)
+
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "he");
+  const pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
+  // Where to look: in the holder's hands, or in storage (nobody holds it, or listed but never handed over).
+  const inStore = r => r.custody === "store" || r.custody === "listed";
+
+  function loadSel() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; } }
+  function saveSel() { try { localStorage.setItem(LS_KEY, JSON.stringify(sel)); } catch {} }
+  const isTracked = t => (t.id in sel) ? !!sel[t.id] : t.tracking === "serial";
+
+  function fillSelect(el, values) {
+    const first = el.options[0];
+    el.innerHTML = ""; el.appendChild(first);
+    [...new Set(values.filter(Boolean))].sort(cmp).forEach(v => {
+      const o = document.createElement("option"); o.value = v; o.textContent = v; el.appendChild(o);
+    });
+  }
+
+  function defaultSince() {
+    const d = new Date(); d.setDate(d.getDate() - 30);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  const reported = (r, since) => !!r.last_report_date && r.last_report_date >= since;
+
+  function renderTrackPanel() {
+    const box = (t) => `<label><input type="checkbox" data-id="${t.id}" ${isTracked(t) ? "checked" : ""}> ${esc(t.name)}</label>`;
+    $("tSerial").innerHTML = types.filter(t => t.tracking === "serial").map(box).join("") || '<div class="note">None</div>';
+    $("tBulk").innerHTML = types.filter(t => t.tracking !== "serial").map(box).join("") || '<div class="note">None</div>';
+    $("trackSummary").textContent = `Tracked items (${types.filter(isTracked).length} of ${types.length} types)`;
+  }
+
+  function summaryRows(list, keyFn, since) {
+    const m = new Map();
+    for (const r of list) {
+      const k = keyFn(r);
+      if (!m.has(k)) m.set(k, { ok: 0, total: 0 });
+      const g = m.get(k); g.total++; if (reported(r, since)) g.ok++;
+    }
+    return [...m.entries()].sort((a, b) => (a[0] === STORE ? -1 : b[0] === STORE ? 1 : cmp(a[0], b[0]))).map(([k, g]) => `
+      <tr><td>${esc(k)}</td><td class="n">${g.ok} / ${g.total}</td>
+          <td class="n ${g.total - g.ok ? "miss" : ""}">${g.total - g.ok}</td>
+          <td style="width:30%"><div class="bar"><i style="width:${pct(g.ok, g.total)}%"></i></div></td></tr>`).join("");
+  }
+
+  function render() {
+    const since = $("since").value;
+    const dep = $("dep").value, inv = $("inv").value;
+    if (!since) { $("body").innerHTML = '<div class="empty">Pick a date</div>'; return; }
+
+    const trackedIds = new Set(types.filter(isTracked).map(t => t.id));
+    const passes = r => (!dep || r.owner_dep === dep) && (!inv || (r.inventory_label ?? NO_INV) === inv);
+    const list = rows.filter(r => trackedIds.has("s|" + r.item_name) && passes(r));
+    const bulk = bulkRows.filter(r => trackedIds.has("b|" + r.item_name) && passes(r));
+    const ok = list.filter(r => reported(r, since));
+    const missing = list.filter(r => !reported(r, since));
+
+    $("tiles").innerHTML =
+      `<div class="tile"><b>${list.length}</b><span>סה״כ פריטים</span></div>
+       <div class="tile"><b>${ok.length}</b><span>דווחו</span></div>
+       <div class="tile ${missing.length ? "bad" : ""}"><b>${missing.length}</b><span>לא דווחו</span></div>`;
+    $("fill").style.width = pct(ok.length, list.length) + "%";
+    $("meta").textContent = `${pct(ok.length, list.length)}% reported since ${since}`;
+
+    let html = "";
+    if (list.length) {
+      const tableHead = first => `<table><thead><tr><th>${first}</th><th>Reported</th><th>Missing</th><th></th></tr></thead><tbody>`;
+      html += `<h2>By inventory</h2>${tableHead("Inventory")}${summaryRows(list, r => r.inventory_label ?? NO_INV, since)}</tbody></table>`;
+      html += `<h2>By location</h2><div class="note">${STORE} includes items registered to a person but never handed over.</div>` +
+              `${tableHead("Location")}${summaryRows(list, r => inStore(r) ? STORE : (r.owner_dep ?? "—"), since)}</tbody></table>`;
+
+      html += `<h2>Not reported (${missing.length})</h2>`;
+      if (!missing.length) {
+        html += '<div class="done">All items were reported</div>';
+      } else {
+        const itemRow = (i, showReg) => `
+          <div class="item">
+            <span>${esc(i.item_name)}${i.serial ? ` <small>#${esc(i.serial)}</small>` : ""}
+              <small> · ${esc(i.inventory_label)}</small>
+              ${i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}
+              ${showReg && i.owner_id != null ? `<br><span class="reg">רשום על ${esc(i.owner_name)} (${esc(i.owner_id)}) · לא נמסר</span>` : ""}</span>
+            <small>${i.last_report_date ? "דווח לאחרונה " + esc(i.last_report_date) : "מעולם לא דווח"}${i.status_label ? " · " + esc(i.status_label) : ""}</small>
+          </div>`;
+
+        // 1) Everything physically in storage, whether or not it is registered to someone.
+        const store = missing.filter(inStore)
+          .sort((a, b) => (a.owner_id == null) - (b.owner_id == null) || cmp(a.item_name, b.item_name) || cmp(a.serial, b.serial));
+        if (store.length) {
+          html += `<div class="group store"><div class="ghead"><span>${STORE}</span><span>${store.length}</span></div>` +
+                  store.map(i => itemRow(i, true)).join("") + `</div>`;
+        }
+
+        // 2) Items actually in somebody's hands.
+        const byOwner = new Map();
+        for (const r of missing.filter(r => !inStore(r))) {
+          const k = r.owner_id ?? "none";
+          if (!byOwner.has(k)) byOwner.set(k, { head: r, items: [] });
+          byOwner.get(k).items.push(r);
+        }
+        html += [...byOwner.values()].sort((a, b) => cmp(a.head.owner_name, b.head.owner_name)).map(({ head: o, items }) =>
+          `<div class="group"><div class="ghead"><span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span></div>` +
+          items.sort((a, b) => cmp(a.item_name, b.item_name)).map(i => itemRow(i, false)).join("") + `</div>`).join("");
+      }
+    } else {
+      html += '<div class="empty">No serial items in the current selection</div>';
+    }
+
+    if (bulk.length) {
+      const m = new Map();
+      for (const r of bulk) {
+        const k = r.item_name + "|" + (r.inventory_label ?? NO_INV);
+        if (!m.has(k)) m.set(k, { name: r.item_name, inv: r.inventory_label ?? NO_INV, total: 0, store: 0, hands: 0 });
+        const g = m.get(k), n = Number(r.quantity) || 0;
+        g.total += n; if (inStore(r)) g.store += n; else g.hands += n;
+      }
+      html += `<h2>Non-serial items</h2><div class="note">Counts only. The daily report cannot record non-serial items yet, so there is no reported status.</div>
+        <table><thead><tr><th>Item</th><th>Inventory</th><th>Total</th><th>${STORE}</th><th>בידיים</th></tr></thead><tbody>` +
+        [...m.values()].sort((a, b) => cmp(a.inv, b.inv) || b.total - a.total).map(g =>
+          `<tr><td>${esc(g.name)}</td><td>${esc(g.inv)}</td><td class="n">${g.total}</td><td class="n">${g.store}</td><td class="n">${g.hands}</td></tr>`).join("") +
+        `</tbody></table>`;
+    }
+    $("body").innerHTML = html;
+  }
+
+  async function load() {
+    const all = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from("unit_report_check_v").select("*").order("row_id").range(from, from + 999);
+      if (error) { $("body").innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      all.push(...data);
+      if (data.length < 1000) break;
+    }
+    // The by-person view already knows whether each item was handed over (custody), and for
+    // non-serial lines it also has the quantity. Its row ids match this view's ("u" + unit id).
+    const held = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from("inventory_holdings_v")
+        .select("row_id,item_name,quantity,inventory_label,custody,owner_id,owner_dep")
+        .order("row_id").range(from, from + 999);
+      if (error) { $("body").innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      held.push(...data);
+      if (data.length < 1000) break;
+    }
+    const custodyById = new Map(held.map(h => [h.row_id, h.custody]));
+    rows = all.map(r => ({ ...r, custody: custodyById.get(r.row_id) }));
+    bulkRows = held.filter(h => h.row_id.startsWith("s"));
+
+    const tm = new Map();
+    for (const r of rows) if (r.item_name && !tm.has("s|" + r.item_name))
+      tm.set("s|" + r.item_name, { id: "s|" + r.item_name, name: r.item_name, tracking: "serial" });
+    for (const r of bulkRows) if (r.item_name && !tm.has("b|" + r.item_name))
+      tm.set("b|" + r.item_name, { id: "b|" + r.item_name, name: r.item_name, tracking: "bulk" });
+    types = [...tm.values()].sort((a, b) => cmp(a.name, b.name));
+    sel = loadSel();
+    fillSelect($("dep"), [...rows, ...bulkRows].map(r => r.owner_dep));
+    fillSelect($("inv"), [...rows, ...bulkRows].map(r => r.inventory_label ?? NO_INV));
+    $("since").value = defaultSince();
+    renderTrackPanel();
+    render();
+  }
+
+  function setSel(fn) {
+    sel = {};
+    types.forEach(t => { sel[t.id] = fn(t); });
+    saveSel(); renderTrackPanel(); render();
+  }
+
+  ["since", "dep", "inv"].forEach(id => $(id).addEventListener("change", render));
+  $("trackBox").addEventListener("change", e => {
+    const cb = e.target.closest("input[data-id]");
+    if (!cb) return;
+    sel[cb.dataset.id] = cb.checked;
+    // keys are strings in JSON; compare by string
+    saveSel(); $("trackSummary").textContent = `Tracked items (${types.filter(isTracked).length} of ${types.length} types)`; render();
+  });
+  $("selSerial").addEventListener("click", () => { sel = {}; saveSel(); renderTrackPanel(); render(); });
+  $("selAll").addEventListener("click", () => setSel(() => true));
+  $("selNone").addEventListener("click", () => setSel(() => false));
+  load();
+</script>
+</body>
+</html>
