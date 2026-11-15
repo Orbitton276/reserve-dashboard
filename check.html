@@ -93,7 +93,7 @@
 
   <div class="tiles" id="tiles"></div>
   <div class="bar"><i id="fill" style="width:0"></i></div>
-  <div class="note" id="meta"></div>
+  <div class="note"><span id="meta"></span> · <span id="updated"></span></div>
 
   <div id="body"><div class="empty">Loading...</div></div>
 </main>
@@ -104,6 +104,10 @@
   const SUPABASE_URL = "https://bqibfhhhthfzawzkpsdr.supabase.co";
   const SUPABASE_KEY = "sb_publishable_NYRPrV7chJz-X5MTfyTr9Q_caqJ7A4v";
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const REFRESH_MS = 60000;
+  let lastOk = "", lastAt = 0;
+  const clock = () => new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const STORE = "במחסן";
   const NO_INV = "Other";
@@ -124,12 +128,15 @@
   function saveSel() { try { localStorage.setItem(LS_KEY, JSON.stringify(sel)); } catch {} }
   const isTracked = t => (t.id in sel) ? !!sel[t.id] : t.tracking === "serial";
 
+  // Keeps the current choice when the options are rebuilt on an auto refresh.
   function fillSelect(el, values) {
+    const cur = el.value;
     const first = el.options[0];
     el.innerHTML = ""; el.appendChild(first);
     [...new Set(values.filter(Boolean))].sort(cmp).forEach(v => {
       const o = document.createElement("option"); o.value = v; o.textContent = v; el.appendChild(o);
     });
+    if ([...el.options].some(o => o.value === cur)) el.value = cur;
   }
 
   function defaultSince() {
@@ -238,11 +245,17 @@
     $("body").innerHTML = html;
   }
 
-  async function load() {
+  // On a background refresh keep showing the last good data and just say the update failed.
+  function fail(isRefresh, message) {
+    if (isRefresh) { $("updated").textContent = `Update failed, showing data from ${lastOk}`; return; }
+    $("body").innerHTML = `<div class="error">Could not load data: ${esc(message)}</div>`;
+  }
+
+  async function load(isRefresh) {
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from("unit_report_check_v").select("*").order("row_id").range(from, from + 999);
-      if (error) { $("body").innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      if (error) return fail(isRefresh, error.message);
       all.push(...data);
       if (data.length < 1000) break;
     }
@@ -253,7 +266,7 @@
       const { data, error } = await db.from("inventory_holdings_v")
         .select("row_id,item_name,quantity,inventory_label,custody,owner_id,owner_dep")
         .order("row_id").range(from, from + 999);
-      if (error) { $("body").innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      if (error) return fail(isRefresh, error.message);
       held.push(...data);
       if (data.length < 1000) break;
     }
@@ -270,9 +283,11 @@
     sel = loadSel();
     fillSelect($("dep"), [...rows, ...bulkRows].map(r => r.owner_dep));
     fillSelect($("inv"), [...rows, ...bulkRows].map(r => r.inventory_label ?? NO_INV));
-    $("since").value = defaultSince();
+    if (!isRefresh) $("since").value = defaultSince();   // never overwrite the date a user picked
     renderTrackPanel();
     render();
+    lastOk = clock(); lastAt = Date.now();
+    $("updated").textContent = `Updated ${lastOk}`;
   }
 
   function setSel(fn) {
@@ -293,6 +308,11 @@
   $("selAll").addEventListener("click", () => setSel(() => true));
   $("selNone").addEventListener("click", () => setSel(() => false));
   load();
+  // Auto refresh while the tab is visible; catch up when the tab comes back.
+  setInterval(() => { if (!document.hidden) load(true); }, REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - lastAt > REFRESH_MS) load(true);
+  });
 </script>
 </body>
 </html>

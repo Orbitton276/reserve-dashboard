@@ -60,7 +60,7 @@
     <select id="inv" aria-label="Inventory"><option value="">All inventories</option></select>
   </div>
   <div class="bar">
-    <span class="meta" id="meta"></span>
+    <span class="meta"><span id="meta"></span> · <span id="updated"></span></span>
     <button class="link" id="reset" type="button">Reset filters</button>
   </div>
   <div class="tiles" id="tiles"></div>
@@ -90,7 +90,9 @@
   }
   const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "he");
 
+  // Keeps the current choice when the options are rebuilt on an auto refresh.
   function fillSelect(el, values) {
+    const cur = el.value;
     const first = el.options[0];
     el.innerHTML = "";
     el.appendChild(first);
@@ -99,7 +101,13 @@
       o.value = v; o.textContent = v;
       el.appendChild(o);
     });
+    if ([...el.options].some(o => o.value === cur)) el.value = cur;
   }
+
+  const REFRESH_MS = 60000;
+  const updatedEl = document.getElementById("updated");
+  let lastOk = "", lastAt = 0;
+  const clock = () => new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   // Two places only: in somebody's hands, or in storage.
   //   issued = in the person's hands
@@ -168,14 +176,18 @@
     }).join("");
   }
 
-  async function load() {
+  async function load(isRefresh) {
     // PostgREST caps responses (1000 rows by default), so page through to be safe.
     const all = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await db.from("inventory_holdings_v")
         .select("row_id,owner_dep,item_name,quantity,inventory_label,custody")
         .order("row_id").range(from, from + 999);
-      if (error) { listEl.innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      if (error) {
+        // On a background refresh keep showing the last good data.
+        if (isRefresh) { updatedEl.textContent = `Update failed, showing data from ${lastOk}`; return; }
+        listEl.innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return;
+      }
       all.push(...data);
       if (data.length < 1000) break;
     }
@@ -183,6 +195,8 @@
     fillSelect(depEl, rows.map(r => r.owner_dep));
     fillSelect(invEl, rows.map(r => r.inventory_label ?? NO_INV));
     render();
+    lastOk = clock(); lastAt = Date.now();
+    updatedEl.textContent = `Updated ${lastOk}`;
   }
 
   qEl.addEventListener("input", render);
@@ -192,6 +206,11 @@
     qEl.value = ""; depEl.value = ""; invEl.value = ""; render();
   });
   load();
+  // Auto refresh while the tab is visible; catch up when the tab comes back.
+  setInterval(() => { if (!document.hidden) load(true); }, REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - lastAt > REFRESH_MS) load(true);
+  });
 </script>
 </body>
 </html>
