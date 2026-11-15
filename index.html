@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en" dir="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reserve Inventory</title>
+<style>
+  /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121412; --fg:#eceee8; --muted:#a3a99a; --line:#2b2f27; --head:#444C38; --headfg:#fff; --card:#1b1e19; --sub:rgba(68,76,56,.35); }
+  }
+  input:focus, select:focus { outline:2px solid var(--head); outline-offset:1px; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  nav { display:flex; gap:8px; margin-bottom:12px; }
+  nav a { padding:8px 14px; border-radius:8px; text-decoration:none; color:var(--fg); border:1px solid var(--line); background:var(--card); font-weight:600; font-size:15px; }
+  nav a.active { background:var(--head); color:var(--headfg); border-color:var(--head); }
+  h1 { font-size:20px; margin:0 0 12px; }
+  .filters { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .filters .full { grid-column:1 / -1; }
+  input, select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  .bar { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:10px 0 4px; }
+  .meta { color:var(--muted); font-size:14px; }
+  button.link { background:none; border:0; color:var(--muted); text-decoration:underline; font-size:14px; cursor:pointer; padding:0; }
+  .group { margin:16px 0; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  .ghead { display:flex; justify-content:space-between; gap:12px; background:var(--head); color:var(--headfg); padding:12px; font-weight:bold; }
+  .sub { display:flex; justify-content:space-between; background:var(--sub); border-top:1px solid var(--line); border-inline-start:4px solid var(--head); margin-top:6px; padding:8px 12px; font-size:14px; font-weight:700; color:var(--fg); }
+  .sub small { font-weight:400; color:var(--muted); }
+  .item { display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border-top:1px solid var(--line); }
+  .item small { color:var(--muted); }
+  .item.child { padding-inline-start:32px; background:var(--card); font-size:15px; }
+  .item.child::before { content:"\21B3"; color:var(--muted); margin-inline-end:6px; }
+  .item.child > span { flex:1; }
+  .empty, .error { text-align:center; color:var(--muted); padding:32px 0; }
+  .error { color:#c0392b; }
+  @media (max-width:520px) { .filters { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="index.html" class="active">לפי אדם</a>
+    <a href="dashboard.html">לוח מחוונים</a>
+  </nav>
+  <h1>Reserve Inventory</h1>
+  <div class="filters">
+    <input id="q" class="full" type="search" placeholder="Search owner, department, item or serial" autocomplete="off">
+    <select id="dep" aria-label="Department"><option value="">All departments</option></select>
+    <select id="inv" aria-label="Inventory"><option value="">All inventories</option></select>
+  </div>
+  <div class="bar">
+    <span class="meta" id="meta"></span>
+    <button class="link" id="reset" type="button">Reset filters</button>
+  </div>
+  <div id="list"><div class="empty">Loading...</div></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // Publishable key is public by design. It can only read the inventory_by_owner_v view.
+  const SUPABASE_URL = "https://bqibfhhhthfzawzkpsdr.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_NYRPrV7chJz-X5MTfyTr9Q_caqJ7A4v";
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const NO_OWNER = "ללא בעלים (במחסן)";
+  const NO_INV = "Other";
+  const listEl = document.getElementById("list");
+  const metaEl = document.getElementById("meta");
+  const qEl = document.getElementById("q");
+  const depEl = document.getElementById("dep");
+  const invEl = document.getElementById("inv");
+  let rows = [];
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  function fillSelect(el, values) {
+    const first = el.options[0];
+    el.innerHTML = "";
+    el.appendChild(first);
+    [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "he")).forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      el.appendChild(o);
+    });
+  }
+
+  function render() {
+    const q = qEl.value.trim().toLowerCase();
+    const dep = depEl.value, inv = invEl.value;
+
+    const filtered = rows.filter(r => {
+      if (dep && r.owner_dep !== dep) return false;
+      if (inv && (r.inventory_label ?? NO_INV) !== inv) return false;
+      if (q.length > 1) {
+        return [r.owner_id, r.owner_name, r.owner_dep, r.item_name, r.serial]
+          .some(v => String(v ?? "").toLowerCase().includes(q));
+      }
+      return true;
+    });
+
+    // Linked items sit under their parent when the parent is visible and has the same owner.
+    // Otherwise they stay top-level and show "on <parent>".
+    const byId = new Map(filtered.map(r => [r.row_id, r]));
+    const children = new Map();
+    const isChild = r => {
+      const p = r.parent_row_id && byId.get(r.parent_row_id);
+      return !!p && p.owner_id === r.owner_id;
+    };
+    for (const r of filtered) {
+      if (isChild(r)) {
+        if (!children.has(r.parent_row_id)) children.set(r.parent_row_id, []);
+        children.get(r.parent_row_id).push(r);
+      }
+    }
+
+    // owner -> inventory -> items
+    const owners = new Map();
+    for (const r of filtered) {
+      if (isChild(r)) continue;
+      const key = r.owner_id ?? "none";
+      if (!owners.has(key)) owners.set(key, { head: r, byInv: new Map() });
+      const g = owners.get(key);
+      const invKey = r.inventory_label ?? NO_INV;
+      if (!g.byInv.has(invKey)) g.byInv.set(invKey, []);
+      g.byInv.get(invKey).push(r);
+    }
+
+    const sorted = [...owners.values()].sort((a, b) => {
+      if (a.head.owner_id == null) return 1;           // storage last
+      if (b.head.owner_id == null) return -1;
+      return String(a.head.owner_name ?? "").localeCompare(String(b.head.owner_name ?? ""), "he");
+    });
+
+    metaEl.textContent = `${sorted.length} owners, ${filtered.length} items`;
+    if (!filtered.length) { listEl.innerHTML = '<div class="empty">Nothing to show</div>'; return; }
+
+    listEl.innerHTML = sorted.map(({ head: o, byInv }) => {
+      const headHtml = o.owner_id == null
+        ? `<span>${NO_OWNER}</span><span></span><span></span>`
+        : `<span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span>`;
+      const body = [...byInv.entries()].map(([invLabel, items]) => {
+        items.sort((a, b) => String(a.item_name ?? "").localeCompare(String(b.item_name ?? ""), "he"));
+        const itemHtml = (i, child) => `
+          <div class="item${child ? " child" : ""}">
+            <span>${esc(i.item_name)}
+              ${i.serial ? `<small> #${esc(i.serial)}</small>` : ""}
+              ${i.quantity > 1 ? `<small> x${esc(i.quantity)}</small>` : ""}
+              ${i.location ? `<small> · ${esc(i.location)}</small>` : ""}
+              ${!child && i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}</span>
+            <small>${[i.status_label, i.custody === "listed" ? "לא נמסר" : i.custody === "partly" ? "נמסר חלקית" : ""].filter(Boolean).map(esc).join(" · ")}</small>
+          </div>`;
+        const count = items.reduce((n, i) => n + 1 + (children.get(i.row_id)?.length ?? 0), 0);
+        const itemsHtml = items.map(i => itemHtml(i, false) +
+          (children.get(i.row_id) ?? [])
+            .sort((a, b) => String(a.item_name ?? "").localeCompare(String(b.item_name ?? ""), "he"))
+            .map(c => itemHtml(c, true)).join("")).join("");
+        return `<div class="sub"><span>${esc(invLabel)}</span><small>${count}</small></div>${itemsHtml}`;
+      }).join("");
+      return `<div class="group"><div class="ghead">${headHtml}</div>${body}</div>`;
+    }).join("");
+  }
+
+  async function load() {
+    // PostgREST caps responses (1000 rows by default), so page through to be safe.
+    const all = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db.from("inventory_holdings_v")
+        .select("*").order("row_id").range(from, from + 999);
+      if (error) { listEl.innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return; }
+      all.push(...data);
+      if (data.length < 1000) break;
+    }
+    rows = all;
+    fillSelect(depEl, rows.map(r => r.owner_dep));
+    fillSelect(invEl, rows.map(r => r.inventory_label ?? NO_INV));
+    render();
+  }
+
+  qEl.addEventListener("input", render);
+  depEl.addEventListener("change", render);
+  invEl.addEventListener("change", render);
+  document.getElementById("reset").addEventListener("click", () => {
+    qEl.value = ""; depEl.value = ""; invEl.value = ""; render();
+  });
+  load();
+</script>
+</body>
+</html>
