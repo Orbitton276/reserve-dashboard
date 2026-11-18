@@ -22,8 +22,9 @@
   h1 { font-size:20px; margin:0 0 12px; }
   h2 { font-size:16px; margin:24px 0 8px; }
   .filters { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .filters .full { grid-column:1 / -1; }
   label.f { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
-  input[type=date], select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  input[type=date], input[type=search], select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
   input:focus, select:focus { outline:2px solid var(--head); outline-offset:1px; }
   details.track { margin:12px 0; border:1px solid var(--line); border-radius:8px; background:var(--card); }
   details.track summary { cursor:pointer; padding:10px 12px; font-weight:600; }
@@ -75,6 +76,7 @@
     <div><label class="f" for="since">Reported at least once since</label><input id="since" type="date"></div>
     <div><label class="f" for="dep">Department</label><select id="dep"><option value="">All departments</option></select></div>
     <div><label class="f" for="inv">Inventory</label><select id="inv"><option value="">All inventories</option></select></div>
+    <div class="full"><input id="q" type="search" placeholder="Search owner, department, item or serial" autocomplete="off"></div>
   </div>
 
   <details class="track" id="trackBox">
@@ -177,7 +179,10 @@
     if (!since) { $("body").innerHTML = '<div class="empty">Pick a date</div>'; return; }
 
     const trackedIds = new Set(types.filter(isTracked).map(t => t.id));
-    const passes = r => (!dep || r.owner_dep === dep) && (!inv || (r.inventory_label ?? NO_INV) === inv);
+    const q = $("q").value.trim().toLowerCase();
+    const matchesQ = r => q.length < 2 || [r.owner_id, r.owner_name, r.owner_dep, r.item_name, r.serial]
+      .some(v => String(v ?? "").toLowerCase().includes(q));
+    const passes = r => (!dep || r.owner_dep === dep) && (!inv || (r.inventory_label ?? NO_INV) === inv) && matchesQ(r);
     const list = rows.filter(r => trackedIds.has("s|" + r.item_name) && passes(r));
     const bulk = bulkRows.filter(r => trackedIds.has("b|" + r.item_name) && passes(r));
     const ok = list.filter(r => reported(r, since));
@@ -307,6 +312,7 @@
   }
 
   ["since", "dep", "inv"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
+  $("q").addEventListener("input", render);
   $("trackBox").addEventListener("change", e => {
     const cb = e.target.closest("input[data-id]");
     if (!cb) return;
