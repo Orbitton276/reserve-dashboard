@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reserve Existence Check</title>
+<title>Reserve Report</title>
 <style>
   /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
   :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --ok:#3d7a37; --bad:#b42318; --store:#8a5a00; --storebg:rgba(245,158,11,.14); }
@@ -53,6 +53,7 @@
   .group.store .ghead span:first-child::before { content:"\1F3E0  "; }
   .item { display:flex; justify-content:space-between; gap:12px; padding:9px 12px; border-top:1px solid var(--line); }
   .item small { color:var(--muted); }
+  .loan { background:#7c3aed; color:#fff; font-weight:700; font-size:13px; padding:1px 8px; border-radius:6px; white-space:nowrap; align-self:center; }
   .item .reg { color:var(--store); font-weight:600; }
   .note { color:var(--muted); font-size:14px; margin:4px 0 8px; }
   .done { text-align:center; padding:24px; color:var(--ok); font-weight:600; }
@@ -64,9 +65,9 @@
 <body>
 <header class="site"><div class="in">
   <span class="brand">Reserve</span>
-  <a href="index.html">לפי אדם</a>
-  <a href="dashboard.html">לוח מחוונים</a>
-  <a href="check.html" class="active">בדיקת קיום</a>
+  <a href="index.html">Inventory</a>
+  <a href="dashboard.html">Dashboard</a>
+  <a href="check.html" class="active">Report</a>
 </div></header>
 <main>
   <h1>Existence check</h1>
@@ -139,9 +140,13 @@
     if ([...el.options].some(o => o.value === cur)) el.value = cur;
   }
 
-  function defaultSince() {
-    const d = new Date(); d.setDate(d.getDate() - 30);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  // Default start date is 15/11 of the current year. A saved choice wins over it.
+  function defaultSince() { return `${new Date().getFullYear()}-11-15`; }
+
+  const PREFS_KEY = "reserve.check.prefs.v1";
+  function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
+  function savePrefs() {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ since: $("since").value, dep: $("dep").value, inv: $("inv").value })); } catch {}
   }
 
   const reported = (r, since) => !!r.last_report_date && r.last_report_date >= since;
@@ -202,7 +207,8 @@
               <small> · ${esc(i.inventory_label)}</small>
               ${i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}
               ${showReg && i.owner_id != null ? `<br><span class="reg">רשום על ${esc(i.owner_name)} (${esc(i.owner_id)}) · לא נמסר</span>` : ""}</span>
-            <small>${i.last_report_date ? "דווח לאחרונה " + esc(i.last_report_date) : "מעולם לא דווח"}${i.status_label ? " · " + esc(i.status_label) : ""}</small>
+            <small>${i.last_report_date ? "דווח לאחרונה " + esc(i.last_report_date) : "מעולם לא דווח"}${i.status_label && i.status_label !== "מושאל" ? " · " + esc(i.status_label) : ""}</small>
+            ${i.status_label === "מושאל" ? '<span class="loan">מושאל</span>' : ""}
           </div>`;
 
         // 1) Everything physically in storage, whether or not it is registered to someone.
@@ -283,7 +289,11 @@
     sel = loadSel();
     fillSelect($("dep"), [...rows, ...bulkRows].map(r => r.owner_dep));
     fillSelect($("inv"), [...rows, ...bulkRows].map(r => r.inventory_label ?? NO_INV));
-    if (!isRefresh) $("since").value = defaultSince();   // never overwrite the date a user picked
+    if (!isRefresh) {   // restore saved choices once; never overwrite what a user picks later
+      const p = loadPrefs();
+      $("since").value = p.since || defaultSince();
+      for (const id of ["dep", "inv"]) if (p[id] && [...$(id).options].some(o => o.value === p[id])) $(id).value = p[id];
+    }
     renderTrackPanel();
     render();
     lastOk = clock(); lastAt = Date.now();
@@ -296,7 +306,7 @@
     saveSel(); renderTrackPanel(); render();
   }
 
-  ["since", "dep", "inv"].forEach(id => $(id).addEventListener("change", render));
+  ["since", "dep", "inv"].forEach(id => $(id).addEventListener("change", () => { savePrefs(); render(); }));
   $("trackBox").addEventListener("change", e => {
     const cb = e.target.closest("input[data-id]");
     if (!cb) return;

@@ -34,6 +34,7 @@
   .sub.store { border-inline-start-color:var(--store); background:var(--storebg); color:var(--store); }
   .item { display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border-top:1px solid var(--line); }
   .item small { color:var(--muted); }
+  .loan { background:#7c3aed; color:#fff; font-weight:700; font-size:13px; padding:1px 8px; border-radius:6px; white-space:nowrap; align-self:center; }
   .item.child { padding-inline-start:32px; background:var(--card); font-size:15px; }
   .item.child::before { content:"\21B3"; color:var(--muted); margin-inline-end:6px; }
   .item.child > span { flex:1; }
@@ -45,9 +46,9 @@
 <body>
 <header class="site"><div class="in">
   <span class="brand">Reserve</span>
-  <a href="index.html" class="active">לפי אדם</a>
-  <a href="dashboard.html">לוח מחוונים</a>
-  <a href="check.html">בדיקת קיום</a>
+  <a href="index.html" class="active">Inventory</a>
+  <a href="dashboard.html">Dashboard</a>
+  <a href="check.html">Report</a>
 </div></header>
 <main>
   <h1>Reserve Inventory</h1>
@@ -167,6 +168,7 @@
     if (!filtered.length) { listEl.innerHTML = '<div class="empty">Nothing to show</div>'; return; }
 
     const byName = (a, b) => String(a.item_name ?? "").localeCompare(String(b.item_name ?? ""), "he");
+    const LOANED = "מושאל";
     const itemHtml = (i, child, showInv) => `
       <div class="item${child ? " child" : ""}">
         <span>${esc(i.item_name)}
@@ -175,7 +177,8 @@
           ${showInv && i.inventory_label ? `<small> · ${esc(i.inventory_label)}</small>` : ""}
           ${i.location ? `<small> · ${esc(i.location)}</small>` : ""}
           ${!child && i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}</span>
-        <small>${[i.status_label, i.custody === "partly" ? "נמסר חלקית" : ""].filter(Boolean).map(esc).join(" · ")}</small>
+        <small>${[i.status_label !== LOANED ? i.status_label : "", i.custody === "partly" ? "נמסר חלקית" : ""].filter(Boolean).map(esc).join(" · ")}</small>
+        ${i.status_label === LOANED ? `<span class="loan">${LOANED}</span>` : ""}
       </div>`;
     const withChildren = (items, showInv) => items.sort(byName).map(i => itemHtml(i, false, showInv) +
       (children.get(i.row_id) ?? []).sort(byName).map(c => itemHtml(c, true, false)).join("")).join("");
