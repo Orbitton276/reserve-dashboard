@@ -27,6 +27,21 @@
     header.site .who { font-size:13px; color:rgba(255,255,255,.8); }
     header.site button.auth { background:rgba(255,255,255,.15); color:#fff; border:0; border-radius:8px; padding:6px 12px; font-size:14px; cursor:pointer; }
     dialog.signin { border:1px solid var(--line); border-radius:12px; background:var(--bg); color:var(--fg); padding:20px; width:min(340px,92vw); }
+    /* Phones: the header wraps onto two rows (brand + account, then the page links), wide
+       tables scroll inside themselves instead of widening the page. */
+    @media (max-width: 640px) {
+      header.site .in { flex-wrap:wrap; height:auto; gap:0 12px; padding:6px 12px; }
+      header.site .brand { order:1; font-size:17px; margin:0; }
+      header.site .grow { order:2; }
+      header.site .who { order:3; max-width:38vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+      header.site button.auth { order:4; padding:5px 10px; font-size:13px; }
+      header.site .brk { order:5; flex-basis:100%; height:0; }
+      header.site a { order:6; height:40px; font-size:14px; }
+      main { padding:12px; }
+      table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .ghead { flex-wrap:wrap; }
+      h1 { font-size:18px; }
+    }
     dialog.signin::backdrop { background:rgba(0,0,0,.45); }
     dialog.signin h2 { margin:0 0 12px; font-size:18px; }
     dialog.signin input { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); margin-bottom:8px; }
@@ -40,7 +55,8 @@
   const grow = document.createElement("span"); grow.className = "grow";
   const who = document.createElement("span"); who.className = "who";
   const btn = document.createElement("button"); btn.className = "auth"; btn.type = "button";
-  bar.append(grow, who, btn);
+  const brk = document.createElement("span"); brk.className = "brk";
+  bar.append(grow, who, btn, brk);
 
   const dlg = document.createElement("dialog"); dlg.className = "signin";
   dlg.innerHTML = `<form method="dialog" id="rsForm"><h2>Sign in</h2>
