@@ -48,6 +48,9 @@
   td .bar { margin:0; min-width:80px; }
   .miss { color:var(--bad); font-weight:600; }
   .group { margin:12px 0; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  .ghead a.go { color:inherit; font-weight:600; font-size:13px; text-decoration:underline; white-space:nowrap; }
+  .item a.lk { color:inherit; text-decoration:none; }
+  .item a.lk:hover { text-decoration:underline; }
   .ghead { display:flex; justify-content:space-between; gap:12px; background:var(--head); color:var(--headfg); padding:10px 12px; font-weight:bold; }
   .group.store { border:2px solid var(--store); }
   .group.store .ghead { background:var(--store); color:#fff; }
@@ -69,6 +72,7 @@
   <a href="index.html">Inventory</a>
   <a href="dashboard.html">Dashboard</a>
   <a href="check.html" class="active">Report</a>
+  <a href="clearance.html">Clearance</a>
 </div></header>
 <main>
   <h1>Existence check</h1>
@@ -83,13 +87,13 @@
     <summary id="trackSummary">Tracked items</summary>
     <div class="inner">
       <div class="tbtns">
-        <button type="button" id="selSerial">Serial only (default)</button>
+        <button type="button" id="selSerial">Everything (default)</button>
         <button type="button" id="selAll">All</button>
         <button type="button" id="selNone">None</button>
       </div>
       <div class="tcols">
         <div><h3>Serial</h3><div id="tSerial"></div></div>
-        <div><h3>Non-serial (cannot be reported yet)</h3><div id="tBulk"></div></div>
+        <div><h3>Non-serial (verified by owner count)</h3><div id="tBulk"></div></div>
       </div>
     </div>
   </details>
@@ -119,6 +123,8 @@
   let rows = [];           // serial units, from unit_report_check_v
   let bulkRows = [];       // non-serial lines, from inventory_holdings_v (counts only)
   let types = [];          // [{id, name, tracking}], id = "s|name" or "b|name"
+  let stockById = new Map(); // 's<id>' -> stock line, to match a row to its owner counts
+  let latestCount = new Map(); // line key -> latest owner count (signed in only)
   let sel = {};            // item_type_id -> true/false; absent = default (serial on, non-serial off)
 
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -129,7 +135,7 @@
 
   function loadSel() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; } }
   function saveSel() { try { localStorage.setItem(LS_KEY, JSON.stringify(sel)); } catch {} }
-  const isTracked = t => (t.id in sel) ? !!sel[t.id] : t.tracking === "serial";
+  const isTracked = t => (t.id in sel) ? !!sel[t.id] : true;
 
   // Keeps the current choice when the options are rebuilt on an auto refresh.
   function fillSelect(el, values) {
@@ -149,6 +155,17 @@
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; } }
   function savePrefs() {
     try { localStorage.setItem(PREFS_KEY, JSON.stringify({ since: $("since").value, dep: $("dep").value, inv: $("inv").value })); } catch {}
+  }
+
+  // A bulk row is verified when its line has an owner count on or after the date. Store lines
+  // have no owner and are not counted this way, so they return null.
+  const lineKey = s => `${s.inventory_id}:${s.item_type_id}:${s.holder_user_id}:${s.parent_unit_id ?? ""}`;
+  function countOf(r, since) {
+    const s = stockById.get(r.row_id);
+    if (!s || s.holder_user_id == null) return null;
+    const c = latestCount.get(lineKey(s));
+    if (!c || String(c.counted_at).slice(0, 10) < since) return { ok: false, short: false };
+    return { ok: true, short: c.counted_qty < c.expected_qty };
   }
 
   const reported = (r, since) => !!r.last_report_date && r.last_report_date >= since;
@@ -208,7 +225,7 @@
       } else {
         const itemRow = (i, showReg) => `
           <div class="item">
-            <span>${esc(i.item_name)}${i.serial ? ` <small>#${esc(i.serial)}</small>` : ""}
+            <span>${i.owner_id != null ? `<a class="lk" href="clearance.html?owner=${encodeURIComponent(i.owner_id)}${i.inventory_label ? "&inv=" + encodeURIComponent(i.inventory_label) : ""}" title="Owner clearance">${esc(i.item_name)}</a>` : esc(i.item_name)}${i.serial ? ` <small>#${esc(i.serial)}</small>` : ""}
               <small> · ${esc(i.inventory_label)}</small>
               ${i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}
               ${showReg && i.owner_id != null ? `<br><span class="reg">רשום על ${esc(i.owner_name)} (${esc(i.owner_id)}) · לא נמסר</span>` : ""}</span>
@@ -232,7 +249,7 @@
           byOwner.get(k).items.push(r);
         }
         html += [...byOwner.values()].sort((a, b) => cmp(a.head.owner_name, b.head.owner_name)).map(({ head: o, items }) =>
-          `<div class="group"><div class="ghead"><span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span></div>` +
+          `<div class="group"><div class="ghead"><span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span><a class="go" href="clearance.html?owner=${encodeURIComponent(o.owner_id)}">Clearance &rsaquo;</a></div>` +
           items.sort((a, b) => cmp(a.item_name, b.item_name)).map(i => itemRow(i, false)).join("") + `</div>`).join("");
       }
     } else {
@@ -243,14 +260,17 @@
       const m = new Map();
       for (const r of bulk) {
         const k = r.item_name + "|" + (r.inventory_label ?? NO_INV);
-        if (!m.has(k)) m.set(k, { name: r.item_name, inv: r.inventory_label ?? NO_INV, total: 0, store: 0, hands: 0 });
+        if (!m.has(k)) m.set(k, { name: r.item_name, inv: r.inventory_label ?? NO_INV, total: 0, store: 0, hands: 0, lines: 0, ok: 0, short: 0 });
         const g = m.get(k), n = Number(r.quantity) || 0;
         g.total += n; if (inStore(r)) g.store += n; else g.hands += n;
+        const c = countOf(r, since);
+        if (c) { g.lines++; if (c.ok) g.ok++; if (c.ok && c.short) g.short++; }
       }
-      html += `<h2>Non-serial items</h2><div class="note">Counts only. The daily report cannot record non-serial items yet, so there is no reported status.</div>
-        <table><thead><tr><th>Item</th><th>Inventory</th><th>Total</th><th>${STORE}</th><th>בידיים</th></tr></thead><tbody>` +
+      html += `<h2>Non-serial items</h2><div class="note">Verified = the owner's line was counted on or after the date above (use Clearance to count). Store lines are not counted this way.</div>
+        <table><thead><tr><th>Item</th><th>Inventory</th><th>Total</th><th>${STORE}</th><th>בידיים</th><th>Verified</th></tr></thead><tbody>` +
         [...m.values()].sort((a, b) => cmp(a.inv, b.inv) || b.total - a.total).map(g =>
-          `<tr><td>${esc(g.name)}</td><td>${esc(g.inv)}</td><td class="n">${g.total}</td><td class="n">${g.store}</td><td class="n">${g.hands}</td></tr>`).join("") +
+          `<tr><td>${esc(g.name)}</td><td>${esc(g.inv)}</td><td class="n">${g.total}</td><td class="n">${g.store}</td><td class="n">${g.hands}</td>
+          <td class="n ${g.lines - g.ok || g.short ? "miss" : ""}">${g.lines ? `${g.ok} / ${g.lines}${g.short ? ` · ${g.short} short` : ""}` : "&mdash;"}</td></tr>`).join("") +
         `</tbody></table>`;
     }
     $("body").innerHTML = html;
@@ -284,6 +304,28 @@
     const custodyById = new Map(held.map(h => [h.row_id, h.custody]));
     rows = all.map(r => ({ ...r, custody: custodyById.get(r.row_id) }));
     bulkRows = held.filter(h => h.row_id.startsWith("s"));
+
+    // Owner counts exist only for signed-in users; without them the column shows a dash.
+    stockById = new Map(); latestCount = new Map();
+    try {
+      await (window.RS && RS.first);
+      if (window.RS && RS.session) {
+        const page = async (table, cols) => {
+          const out = [];
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await RS.db.from(table).select(cols).order("id").range(from, from + 999);
+            if (error) throw error; out.push(...data); if (data.length < 1000) break;
+          }
+          return out;
+        };
+        const [st, cs] = await Promise.all([
+          page("stock", "id,inventory_id,item_type_id,holder_user_id,parent_unit_id"),
+          page("custody_counts", "id,inventory_id,item_type_id,holder_user_id,parent_unit_id,counted_at,counted_qty,expected_qty"),
+        ]);
+        stockById = new Map(st.map(r => ["s" + r.id, r]));
+        for (const c of cs) { const k = lineKey(c), p = latestCount.get(k); if (!p || c.counted_at >= p.counted_at) latestCount.set(k, c); }
+      }
+    } catch (e) { /* leave empty */ }
 
     const tm = new Map();
     for (const r of rows) if (r.item_name && !tm.has("s|" + r.item_name))
@@ -330,5 +372,6 @@
     if (!document.hidden && Date.now() - lastAt > REFRESH_MS) load(true);
   });
 </script>
+<script src="auth.js"></script>
 </body>
 </html>
