@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" dir="auto">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reserve Dashboard</title>
+<title>כללי מילואים</title>
 <style>
   /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
   :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --warn:#b45309; }
@@ -47,25 +47,25 @@
 </head>
 <body>
 <header class="site"><div class="in">
-  <span class="brand">Reserve</span>
-  <a href="index.html">Inventory</a>
-  <a href="dashboard.html" class="active">Dashboard</a>
-  <a href="check.html">Report</a>
-  <a href="clearance.html">Clearance</a>
+  <span class="brand">מילואים</span>
+  <a href="index.html">מלאי</a>
+  <a href="dashboard.html" class="active">כללי</a>
+  <a href="check.html">דיווח יומי</a>
+  <a href="clearance.html">ציוד לפי בעלים</a>
 </div></header>
 <main>
-  <h1>Reserve Dashboard</h1>
+  <h1>כללי</h1>
   <div class="filters">
-    <input id="q" type="search" placeholder="Search item" autocomplete="off">
-    <select id="dep" aria-label="Department"><option value="">All departments</option></select>
-    <select id="inv" aria-label="Inventory"><option value="">All inventories</option></select>
+    <input id="q" type="search" placeholder="חיפוש פריט" autocomplete="off">
+    <select id="dep" aria-label="מחלקה"><option value="">כל המחלקות</option></select>
+    <select id="inv" aria-label="מלאי"><option value="">כל המלאים</option></select>
   </div>
   <div class="bar">
     <span class="meta"><span id="meta"></span> · <span id="updated"></span></span>
-    <button class="link" id="reset" type="button">Reset filters</button>
+    <button class="link" id="reset" type="button">נקה סינון</button>
   </div>
   <div class="tiles" id="tiles"></div>
-  <div id="list"><div class="empty">Loading...</div></div>
+  <div id="list"><div class="empty">טוען…</div></div>
   <p class="meta" id="note"></p>
 </main>
 
@@ -76,7 +76,7 @@
   const SUPABASE_KEY = "sb_publishable_NYRPrV7chJz-X5MTfyTr9Q_caqJ7A4v";
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const NO_INV = "Other";
+  const NO_INV = "אחר";
   const listEl = document.getElementById("list");
   const tilesEl = document.getElementById("tiles");
   const metaEl = document.getElementById("meta");
@@ -153,9 +153,9 @@
       [all.store, "במחסן", all.listed ? `מתוכם ${all.listed} רשומים על אדם, לא נמסרו` : ""]
     ].map(([n, l, sub]) => `<div class="tile"><b>${n}</b><span>${l}</span>${sub ? `<br><span class="sub">${sub}</span>` : ""}</div>`).join("");
 
-    metaEl.textContent = `${byInv.size} inventories`;
-    noteEl.textContent = dep ? "Items registered to nobody have no department, so they are not counted when a department is selected." : "";
-    if (!filtered.length) { listEl.innerHTML = '<div class="empty">Nothing to show</div>'; return; }
+    metaEl.textContent = `${byInv.size} מלאים`;
+    noteEl.textContent = dep ? "פריטים שלא רשומים על אף אחד אינם שייכים למחלקה, ולכן אינם נספרים כשנבחרה מחלקה." : "";
+    if (!filtered.length) { listEl.innerHTML = '<div class="empty">אין מה להציג</div>'; return; }
 
     listEl.innerHTML = [...byInv.entries()].sort((a, b) => cmp(a[0], b[0])).map(([label, g]) => {
       const cards = [...g.items.entries()]
@@ -186,8 +186,8 @@
         .order("row_id").range(from, from + 999);
       if (error) {
         // On a background refresh keep showing the last good data.
-        if (isRefresh) { updatedEl.textContent = `Update failed, showing data from ${lastOk}`; return; }
-        listEl.innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return;
+        if (isRefresh) { updatedEl.textContent = `העדכון נכשל, מוצגים נתונים מ-${lastOk}`; return; }
+        listEl.innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(error.message)}</div>`; return;
       }
       all.push(...data);
       if (data.length < 1000) break;
@@ -197,7 +197,7 @@
     fillSelect(invEl, rows.map(r => r.inventory_label ?? NO_INV));
     render();
     lastOk = clock(); lastAt = Date.now();
-    updatedEl.textContent = `Updated ${lastOk}`;
+    updatedEl.textContent = `עודכן ${lastOk}`;
   }
 
   qEl.addEventListener("input", render);

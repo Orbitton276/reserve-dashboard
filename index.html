@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" dir="auto">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reserve Inventory</title>
+<title>מלאי מילואים</title>
 <style>
   /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
   :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --store:#8a5a00; --storebg:rgba(245,158,11,.14); }
@@ -48,29 +48,29 @@
 </head>
 <body>
 <header class="site"><div class="in">
-  <span class="brand">Reserve</span>
-  <a href="index.html" class="active">Inventory</a>
-  <a href="dashboard.html">Dashboard</a>
-  <a href="check.html">Report</a>
-  <a href="clearance.html">Clearance</a>
+  <span class="brand">מילואים</span>
+  <a href="index.html" class="active">מלאי</a>
+  <a href="dashboard.html">כללי</a>
+  <a href="check.html">דיווח יומי</a>
+  <a href="clearance.html">ציוד לפי בעלים</a>
 </div></header>
 <main>
-  <h1>Reserve Inventory</h1>
+  <h1>מלאי מילואים</h1>
   <div class="filters">
-    <input id="q" class="full" type="search" placeholder="Search owner, department, item or serial" autocomplete="off">
-    <select id="dep" aria-label="Department"><option value="">All departments</option></select>
-    <select id="inv" aria-label="Inventory"><option value="">All inventories</option></select>
-    <select id="where" aria-label="Where">
-      <option value="">Hands and storage</option>
+    <input id="q" class="full" type="search" placeholder="חיפוש בעלים, מחלקה, פריט או מספר סידורי" autocomplete="off">
+    <select id="dep" aria-label="מחלקה"><option value="">כל המחלקות</option></select>
+    <select id="inv" aria-label="מלאי"><option value="">כל המלאים</option></select>
+    <select id="where" aria-label="איפה">
+      <option value="">בידיים ובמחסן</option>
       <option value="hands">בידיים (נמסר)</option>
       <option value="store">במחסן (כולל רשום ולא נמסר)</option>
     </select>
   </div>
   <div class="bar">
     <span class="meta"><span id="meta"></span> · <span id="updated"></span></span>
-    <button class="link" id="reset" type="button">Reset filters</button>
+    <button class="link" id="reset" type="button">נקה סינון</button>
   </div>
-  <div id="list"><div class="empty">Loading...</div></div>
+  <div id="list"><div class="empty">טוען…</div></div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -81,7 +81,7 @@
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const NO_OWNER = "ללא בעלים (במחסן)";
-  const NO_INV = "Other";
+  const NO_INV = "אחר";
   const listEl = document.getElementById("list");
   const metaEl = document.getElementById("meta");
   const qEl = document.getElementById("q");
@@ -168,14 +168,14 @@
       return String(a.head.owner_name ?? "").localeCompare(String(b.head.owner_name ?? ""), "he");
     });
 
-    metaEl.textContent = `${sorted.length} owners, ${filtered.length} items`;
-    if (!filtered.length) { listEl.innerHTML = '<div class="empty">Nothing to show</div>'; return; }
+    metaEl.textContent = `${sorted.length} בעלים, ${filtered.length} פריטים`;
+    if (!filtered.length) { listEl.innerHTML = '<div class="empty">אין מה להציג</div>'; return; }
 
     const byName = (a, b) => String(a.item_name ?? "").localeCompare(String(b.item_name ?? ""), "he");
     const LOANED = "מושאל";
     const itemHtml = (i, child, showInv) => `
       <div class="item${child ? " child" : ""}">
-        <span>${i.owner_id != null ? `<a class="lk" href="clearance.html?owner=${encodeURIComponent(i.owner_id)}${i.inventory_label ? "&inv=" + encodeURIComponent(i.inventory_label) : ""}" title="Owner clearance">${esc(i.item_name)}</a>` : esc(i.item_name)}
+        <span>${i.owner_id != null ? `<a class="lk" href="clearance.html?owner=${encodeURIComponent(i.owner_id)}${i.inventory_label ? "&inv=" + encodeURIComponent(i.inventory_label) : ""}" title="ציוד לפי בעלים">${esc(i.item_name)}</a>` : esc(i.item_name)}
           ${i.serial ? `<small> #${esc(i.serial)}</small>` : ""}
           ${i.quantity > 1 ? `<small> x${esc(i.quantity)}</small>` : ""}
           ${showInv && i.inventory_label ? `<small> · ${esc(i.inventory_label)}</small>` : ""}
@@ -191,7 +191,7 @@
     listEl.innerHTML = sorted.map(({ head: o, byInv, listed }) => {
       const headHtml = o.owner_id == null
         ? `<span>${NO_OWNER}</span><span></span><span></span>`
-        : `<span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span><a class="go" href="clearance.html?owner=${encodeURIComponent(o.owner_id)}">Clearance &rsaquo;</a>`;
+        : `<span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span><a class="go" href="clearance.html?owner=${encodeURIComponent(o.owner_id)}">ציוד לפי בעלים &lsaquo;</a>`;
       const body = [...byInv.entries()].map(([invLabel, items]) =>
         `<div class="sub"><span>${esc(invLabel)}</span><small>${countOf(items)}</small></div>${withChildren(items, false)}`).join("");
       const storeBody = listed.length
@@ -209,8 +209,8 @@
         .select("*").order("row_id").range(from, from + 999);
       if (error) {
         // On a background refresh keep showing the last good data.
-        if (isRefresh) { updatedEl.textContent = `Update failed, showing data from ${lastOk}`; return; }
-        listEl.innerHTML = `<div class="error">Could not load data: ${esc(error.message)}</div>`; return;
+        if (isRefresh) { updatedEl.textContent = `העדכון נכשל, מוצגים נתונים מ-${lastOk}`; return; }
+        listEl.innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(error.message)}</div>`; return;
       }
       all.push(...data);
       if (data.length < 1000) break;
@@ -220,7 +220,7 @@
     fillSelect(invEl, rows.map(r => r.inventory_label ?? NO_INV));
     render();
     lastOk = clock(); lastAt = Date.now();
-    updatedEl.textContent = `Updated ${lastOk}`;
+    updatedEl.textContent = `עודכן ${lastOk}`;
   }
 
   qEl.addEventListener("input", render);

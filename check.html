@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" dir="auto">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reserve Report</title>
+<title>דיווח יומי</title>
 <style>
   /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
   :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --ok:#3d7a37; --bad:#b42318; --store:#8a5a00; --storebg:rgba(245,158,11,.14); }
@@ -68,32 +68,32 @@
 </head>
 <body>
 <header class="site"><div class="in">
-  <span class="brand">Reserve</span>
-  <a href="index.html">Inventory</a>
-  <a href="dashboard.html">Dashboard</a>
-  <a href="check.html" class="active">Report</a>
-  <a href="clearance.html">Clearance</a>
+  <span class="brand">מילואים</span>
+  <a href="index.html">מלאי</a>
+  <a href="dashboard.html">כללי</a>
+  <a href="check.html" class="active">דיווח יומי</a>
+  <a href="clearance.html">ציוד לפי בעלים</a>
 </div></header>
 <main>
-  <h1>Existence check</h1>
+  <h1>בדיקת קיום</h1>
   <div class="filters">
-    <div><label class="f" for="since">Reported at least once since</label><input id="since" type="date"></div>
-    <div><label class="f" for="dep">Department</label><select id="dep"><option value="">All departments</option></select></div>
-    <div><label class="f" for="inv">Inventory</label><select id="inv"><option value="">All inventories</option></select></div>
-    <div class="full"><input id="q" type="search" placeholder="Search owner, department, item or serial" autocomplete="off"></div>
+    <div><label class="f" for="since">דווח לפחות פעם אחת מאז</label><input id="since" type="date"></div>
+    <div><label class="f" for="dep">מחלקה</label><select id="dep"><option value="">כל המחלקות</option></select></div>
+    <div><label class="f" for="inv">מלאי</label><select id="inv"><option value="">כל המלאים</option></select></div>
+    <div class="full"><input id="q" type="search" placeholder="חיפוש בעלים, מחלקה, פריט או מספר סידורי" autocomplete="off"></div>
   </div>
 
   <details class="track" id="trackBox">
-    <summary id="trackSummary">Tracked items</summary>
+    <summary id="trackSummary">פריטים במעקב</summary>
     <div class="inner">
       <div class="tbtns">
-        <button type="button" id="selSerial">Everything (default)</button>
-        <button type="button" id="selAll">All</button>
-        <button type="button" id="selNone">None</button>
+        <button type="button" id="selSerial">הכול (ברירת מחדל)</button>
+        <button type="button" id="selAll">הכול</button>
+        <button type="button" id="selNone">כלום</button>
       </div>
       <div class="tcols">
-        <div><h3>Serial</h3><div id="tSerial"></div></div>
-        <div><h3>Non-serial (verified by owner count)</h3><div id="tBulk"></div></div>
+        <div><h3>עם מספר סידורי</h3><div id="tSerial"></div></div>
+        <div><h3>ללא מספר סידורי (אימות לפי ספירת בעלים)</h3><div id="tBulk"></div></div>
       </div>
     </div>
   </details>
@@ -102,7 +102,7 @@
   <div class="bar"><i id="fill" style="width:0"></i></div>
   <div class="note"><span id="meta"></span> · <span id="updated"></span></div>
 
-  <div id="body"><div class="empty">Loading...</div></div>
+  <div id="body"><div class="empty">טוען…</div></div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -117,7 +117,7 @@
   const clock = () => new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const STORE = "במחסן";
-  const NO_INV = "Other";
+  const NO_INV = "אחר";
   const LS_KEY = "reserve.check.tracked.v1";
   const $ = id => document.getElementById(id);
   let rows = [];           // serial units, from unit_report_check_v
@@ -172,9 +172,9 @@
 
   function renderTrackPanel() {
     const box = (t) => `<label><input type="checkbox" data-id="${t.id}" ${isTracked(t) ? "checked" : ""}> ${esc(t.name)}</label>`;
-    $("tSerial").innerHTML = types.filter(t => t.tracking === "serial").map(box).join("") || '<div class="note">None</div>';
-    $("tBulk").innerHTML = types.filter(t => t.tracking !== "serial").map(box).join("") || '<div class="note">None</div>';
-    $("trackSummary").textContent = `Tracked items (${types.filter(isTracked).length} of ${types.length} types)`;
+    $("tSerial").innerHTML = types.filter(t => t.tracking === "serial").map(box).join("") || '<div class="note">אין</div>';
+    $("tBulk").innerHTML = types.filter(t => t.tracking !== "serial").map(box).join("") || '<div class="note">אין</div>';
+    $("trackSummary").textContent = `פריטים במעקב (${types.filter(isTracked).length} מתוך ${types.length} סוגים)`;
   }
 
   function summaryRows(list, keyFn, since) {
@@ -193,7 +193,7 @@
   function render() {
     const since = $("since").value;
     const dep = $("dep").value, inv = $("inv").value;
-    if (!since) { $("body").innerHTML = '<div class="empty">Pick a date</div>'; return; }
+    if (!since) { $("body").innerHTML = '<div class="empty">בחרו תאריך</div>'; return; }
 
     const trackedIds = new Set(types.filter(isTracked).map(t => t.id));
     const q = $("q").value.trim().toLowerCase();
@@ -210,22 +210,22 @@
        <div class="tile"><b>${ok.length}</b><span>דווחו</span></div>
        <div class="tile ${missing.length ? "bad" : ""}"><b>${missing.length}</b><span>לא דווחו</span></div>`;
     $("fill").style.width = pct(ok.length, list.length) + "%";
-    $("meta").textContent = `${pct(ok.length, list.length)}% reported since ${since}`;
+    $("meta").textContent = `${pct(ok.length, list.length)}% דווחו מאז ${since}`;
 
     let html = "";
     if (list.length) {
-      const tableHead = first => `<table><thead><tr><th>${first}</th><th>Reported</th><th>Missing</th><th></th></tr></thead><tbody>`;
-      html += `<h2>By inventory</h2>${tableHead("Inventory")}${summaryRows(list, r => r.inventory_label ?? NO_INV, since)}</tbody></table>`;
-      html += `<h2>By location</h2><div class="note">${STORE} includes items registered to a person but never handed over.</div>` +
-              `${tableHead("Location")}${summaryRows(list, r => inStore(r) ? STORE : (r.owner_dep ?? "—"), since)}</tbody></table>`;
+      const tableHead = first => `<table><thead><tr><th>${first}</th><th>דווחו</th><th>חסרים</th><th></th></tr></thead><tbody>`;
+      html += `<h2>לפי מלאי</h2>${tableHead("מלאי")}${summaryRows(list, r => r.inventory_label ?? NO_INV, since)}</tbody></table>`;
+      html += `<h2>לפי מיקום</h2><div class="note">"${STORE}" כולל פריטים שרשומים על אדם ולא נמסרו.</div>` +
+              `${tableHead("מיקום")}${summaryRows(list, r => inStore(r) ? STORE : (r.owner_dep ?? "—"), since)}</tbody></table>`;
 
-      html += `<h2>Not reported (${missing.length})</h2>`;
+      html += `<h2>לא דווחו (${missing.length})</h2>`;
       if (!missing.length) {
-        html += '<div class="done">All items were reported</div>';
+        html += '<div class="done">כל הפריטים דווחו</div>';
       } else {
         const itemRow = (i, showReg) => `
           <div class="item">
-            <span>${i.owner_id != null ? `<a class="lk" href="clearance.html?owner=${encodeURIComponent(i.owner_id)}${i.inventory_label ? "&inv=" + encodeURIComponent(i.inventory_label) : ""}" title="Owner clearance">${esc(i.item_name)}</a>` : esc(i.item_name)}${i.serial ? ` <small>#${esc(i.serial)}</small>` : ""}
+            <span>${i.owner_id != null ? `<a class="lk" href="clearance.html?owner=${encodeURIComponent(i.owner_id)}${i.inventory_label ? "&inv=" + encodeURIComponent(i.inventory_label) : ""}" title="ציוד לפי בעלים">${esc(i.item_name)}</a>` : esc(i.item_name)}${i.serial ? ` <small>#${esc(i.serial)}</small>` : ""}
               <small> · ${esc(i.inventory_label)}</small>
               ${i.attached_to ? `<small> · על ${esc(i.attached_to)}</small>` : ""}
               ${showReg && i.owner_id != null ? `<br><span class="reg">רשום על ${esc(i.owner_name)} (${esc(i.owner_id)}) · לא נמסר</span>` : ""}</span>
@@ -249,11 +249,11 @@
           byOwner.get(k).items.push(r);
         }
         html += [...byOwner.values()].sort((a, b) => cmp(a.head.owner_name, b.head.owner_name)).map(({ head: o, items }) =>
-          `<div class="group"><div class="ghead"><span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span><a class="go" href="clearance.html?owner=${encodeURIComponent(o.owner_id)}">Clearance &rsaquo;</a></div>` +
+          `<div class="group"><div class="ghead"><span>${esc(o.owner_id)}</span><span>${esc(o.owner_name)}</span><span>${esc(o.owner_dep)}</span><a class="go" href="clearance.html?owner=${encodeURIComponent(o.owner_id)}">ציוד לפי בעלים &lsaquo;</a></div>` +
           items.sort((a, b) => cmp(a.item_name, b.item_name)).map(i => itemRow(i, false)).join("") + `</div>`).join("");
       }
     } else {
-      html += '<div class="empty">No serial items in the current selection</div>';
+      html += '<div class="empty">אין פריטים עם מספר סידורי בבחירה הנוכחית</div>';
     }
 
     if (bulk.length) {
@@ -266,11 +266,11 @@
         const c = countOf(r, since);
         if (c) { g.lines++; if (c.ok) g.ok++; if (c.ok && c.short) g.short++; }
       }
-      html += `<h2>Non-serial items</h2><div class="note">Verified = the owner's line was counted on or after the date above (use Clearance to count). Store lines are not counted this way.</div>
-        <table><thead><tr><th>Item</th><th>Inventory</th><th>Total</th><th>${STORE}</th><th>בידיים</th><th>Verified</th></tr></thead><tbody>` +
+      html += `<h2>פריטים ללא מספר סידורי</h2><div class="note">אומת = השורה של הבעלים נספרה בתאריך שנבחר או אחריו (הספירה נעשית במסך ציוד לפי בעלים). שורות מחסן לא נספרות כך.</div>
+        <table><thead><tr><th>פריט</th><th>מלאי</th><th>סה״כ</th><th>${STORE}</th><th>בידיים</th><th>אומת</th></tr></thead><tbody>` +
         [...m.values()].sort((a, b) => cmp(a.inv, b.inv) || b.total - a.total).map(g =>
           `<tr><td>${esc(g.name)}</td><td>${esc(g.inv)}</td><td class="n">${g.total}</td><td class="n">${g.store}</td><td class="n">${g.hands}</td>
-          <td class="n ${g.lines - g.ok || g.short ? "miss" : ""}">${g.lines ? `${g.ok} / ${g.lines}${g.short ? ` · ${g.short} short` : ""}` : "&mdash;"}</td></tr>`).join("") +
+          <td class="n ${g.lines - g.ok || g.short ? "miss" : ""}">${g.lines ? `${g.ok} / ${g.lines}${g.short ? ` · ${g.short} חסר` : ""}` : "&mdash;"}</td></tr>`).join("") +
         `</tbody></table>`;
     }
     $("body").innerHTML = html;
@@ -278,8 +278,8 @@
 
   // On a background refresh keep showing the last good data and just say the update failed.
   function fail(isRefresh, message) {
-    if (isRefresh) { $("updated").textContent = `Update failed, showing data from ${lastOk}`; return; }
-    $("body").innerHTML = `<div class="error">Could not load data: ${esc(message)}</div>`;
+    if (isRefresh) { $("updated").textContent = `העדכון נכשל, מוצגים נתונים מ-${lastOk}`; return; }
+    $("body").innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(message)}</div>`;
   }
 
   async function load(isRefresh) {
@@ -344,7 +344,7 @@
     renderTrackPanel();
     render();
     lastOk = clock(); lastAt = Date.now();
-    $("updated").textContent = `Updated ${lastOk}`;
+    $("updated").textContent = `עודכן ${lastOk}`;
   }
 
   function setSel(fn) {
@@ -360,7 +360,7 @@
     if (!cb) return;
     sel[cb.dataset.id] = cb.checked;
     // keys are strings in JSON; compare by string
-    saveSel(); $("trackSummary").textContent = `Tracked items (${types.filter(isTracked).length} of ${types.length} types)`; render();
+    saveSel(); $("trackSummary").textContent = `פריטים במעקב (${types.filter(isTracked).length} מתוך ${types.length} סוגים)`; render();
   });
   $("selSerial").addEventListener("click", () => { sel = {}; saveSel(); renderTrackPanel(); render(); });
   $("selAll").addEventListener("click", () => setSel(() => true));

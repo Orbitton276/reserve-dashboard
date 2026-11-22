@@ -12,10 +12,13 @@
   const sb = lib.createClient(URL_, KEY);
   const db = lib.createClient(URL_, KEY, { db: { schema: "v2" } });
   const listeners = [];
-  // Roles that may change data from the web, for now. This only decides which buttons
-  // are shown; the database refuses a write from anyone without the grant or permission.
-  const WRITE_ROLES = ["admin", "M4"];
-  const RS = { sb, db, session: null, me: null, canWrite: false, onChange: fn => listeners.push(fn) };
+  // Who may do what from the web. This only decides which buttons are shown; the database
+  // refuses anyone without the grant or permission.
+  //   verify count: admin and the M levels (a count moves nothing)
+  //   hand back:    admin and M4
+  const VERIFY_ROLES = ["admin", "M1", "M2", "M3", "M4"];
+  const HAND_BACK_ROLES = ["admin", "M4"];
+  const RS = { sb, db, session: null, me: null, canVerify: false, canHandBack: false, onChange: fn => listeners.push(fn) };
   window.RS = RS;
 
   const css = document.createElement("style");
@@ -59,12 +62,12 @@
   bar.append(grow, who, btn, brk);
 
   const dlg = document.createElement("dialog"); dlg.className = "signin";
-  dlg.innerHTML = `<form method="dialog" id="rsForm"><h2>Sign in</h2>
-    <input id="rsEmail" type="email" autocomplete="username" placeholder="Email" required>
-    <input id="rsPw" type="password" autocomplete="current-password" placeholder="Password" required>
+  dlg.innerHTML = `<form method="dialog" id="rsForm"><h2>כניסה</h2>
+    <input id="rsEmail" type="email" autocomplete="username" placeholder="אימייל" required>
+    <input id="rsPw" type="password" autocomplete="current-password" placeholder="סיסמה" required>
     <div class="err" id="rsErr"></div>
-    <button class="go" id="rsGo" type="submit">Sign in</button>
-    <button class="x" id="rsX" type="button">Cancel</button></form>`;
+    <button class="go" id="rsGo" type="submit">כניסה</button>
+    <button class="x" id="rsX" type="button">ביטול</button></form>`;
   document.body.appendChild(dlg);
   const $ = id => dlg.querySelector("#" + id);
   $("rsEmail").value = "orbitton276@gmail.com";
@@ -74,19 +77,20 @@
   let siteGate = null;
   if (main && !document.getElementById("gate")) {
     siteGate = document.createElement("div"); siteGate.className = "site-gate";
-    siteGate.innerHTML = '<p>Sign in to see this page.</p><button type="button">Sign in</button>';
+    siteGate.innerHTML = '<p>יש להיכנס כדי לראות את הדף.</p><button type="button">כניסה</button>';
     siteGate.querySelector("button").addEventListener("click", () => RS.open());
     main.parentNode.insertBefore(siteGate, main);
   }
 
   async function loadMe(session) {
-    RS.me = null; RS.canWrite = false;
+    RS.me = null; RS.canVerify = false; RS.canHandBack = false;
     if (!session) return;
     const u = await db.from("users").select("personal_id,first_name,last_name,role_id").eq("auth_id", session.user.id).maybeSingle();
     if (!u.data) return;
     const r = u.data.role_id != null ? await db.from("roles").select("name").eq("id", u.data.role_id).maybeSingle() : null;
     RS.me = { id: u.data.personal_id, name: `${u.data.first_name ?? ""} ${u.data.last_name ?? ""}`.trim(), role: r?.data?.name ?? null };
-    RS.canWrite = WRITE_ROLES.includes(RS.me.role);
+    RS.canVerify = VERIFY_ROLES.includes(RS.me.role);
+    RS.canHandBack = HAND_BACK_ROLES.includes(RS.me.role);
   }
 
   async function apply() {
@@ -96,7 +100,7 @@
     await loadMe(data.session);
     if (siteGate) { siteGate.style.display = data.session ? "none" : ""; main.style.display = data.session ? "" : "none"; }
     who.textContent = data.session ? (RS.me ? `${RS.me.name}${RS.me.role ? " · " + RS.me.role : ""}` : data.session.user.email) : "";
-    btn.textContent = data.session ? "Sign out" : "Sign in";
+    btn.textContent = data.session ? "יציאה" : "כניסה";
     listeners.forEach(fn => fn(data.session));
   }
   RS.open = () => { $("rsErr").textContent = ""; dlg.showModal(); $("rsPw").focus(); };

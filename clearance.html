@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" dir="auto">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reserve Clearance</title>
+<title>ציוד לפי בעלים</title>
 <style>
   /* RG army green, same as the app: PRIMARY_COLOR #444C38 and PRIMARY_TINT */
   :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --ok:#3d7a37; --bad:#b42318; --store:#8a5a00; --storebg:rgba(245,158,11,.14); }
@@ -87,7 +87,7 @@
   .btn.alt { background:var(--card); color:var(--fg); border:1px solid var(--line); font-weight:600; }
   .btn:disabled { opacity:.45; cursor:default; }
   .acts { display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; border-top:1px solid var(--line); }
-  .item.child { padding-left:28px; } .item.child span { color:var(--muted); font-size:14px; }
+  .item.child { padding-inline-start:28px; } .item.child span { color:var(--muted); font-size:14px; }
   .item label { display:flex; gap:10px; align-items:center; cursor:pointer; }
   .item input[type=number] { width:80px; padding:6px 8px; font-size:15px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
   .item.line { display:grid; grid-template-columns:1fr 70px 100px; align-items:center; gap:8px; }
@@ -101,29 +101,29 @@
 </head>
 <body>
 <header class="site"><div class="in">
-  <span class="brand">Reserve</span>
-  <a href="index.html">Inventory</a>
-  <a href="dashboard.html">Dashboard</a>
-  <a href="check.html">Report</a>
-  <a href="clearance.html" class="active">Clearance</a>
+  <span class="brand">מילואים</span>
+  <a href="index.html">מלאי</a>
+  <a href="dashboard.html">כללי</a>
+  <a href="check.html">דיווח יומי</a>
+  <a href="clearance.html" class="active">ציוד לפי בעלים</a>
 </div></header>
 <main>
-  <h1>Owner clearance</h1>
-  <div id="gate" class="gate hide"><p class="note">Sign in to see who still holds equipment and what is short.</p><button type="button" id="gateBtn">Sign in</button></div>
+  <h1>ציוד לפי בעלים</h1>
+  <div id="gate" class="gate hide"><p class="note">יש להיכנס כדי לראות מי עדיין מחזיק ציוד ומה חסר.</p><button type="button" id="gateBtn">כניסה</button></div>
   <div id="ownerView" class="hide"></div>
   <div id="app" class="hide">
     <div class="filters">
-      <div><label class="f" for="inv">Inventory</label><select id="inv"></select></div>
-      <div class="full"><input id="q" type="search" placeholder="Search owner or department" autocomplete="off"></div>
+      <div><label class="f" for="inv">מלאי</label><select id="inv"></select></div>
+      <div class="full"><input id="q" type="search" placeholder="חיפוש בעלים או מחלקה" autocomplete="off"></div>
     </div>
     <div class="tabs" id="tabs">
-      <button type="button" data-tab="owners" class="on">Owners</button>
-      <button type="button" data-tab="shortages">Shortages</button>
-      <button type="button" data-tab="losses">Losses</button>
+      <button type="button" data-tab="owners" class="on">בעלים</button>
+      <button type="button" data-tab="shortages">חוסרים</button>
+      <button type="button" data-tab="losses">אובדנים</button>
       <span style="flex:1"></span>
-      <button type="button" id="csv">Export shortages (CSV)</button>
+      <button type="button" id="csv">ייצוא חוסרים (CSV)</button>
     </div>
-    <div id="view"><div class="empty">Loading...</div></div>
+    <div id="view"><div class="empty">טוען…</div></div>
     <div class="note" id="updated"></div>
   </div>
 </main>
@@ -133,7 +133,7 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "he");
-  const fmt = d => d ? new Date(d).toLocaleDateString("en-GB") : "";
+  const fmt = d => d ? new Date(d).toLocaleDateString("he-IL") : "";
 
   const ownerId = Number(new URLSearchParams(location.search).get("owner")) || null;
   let invId = null, tab = "owners", statusFilter = "all";
@@ -142,11 +142,11 @@
   // Where one owner stands: an open shortage first, then still holding, then counted or clear.
   // `held_qty` is everything he holds here: serial units plus bulk quantity.
   function stateOf(o) {
-    if (o.open_qty > 0) return { k: "open", label: "Short " + o.open_qty };
-    if (o.held_qty > 0 && !o.last_counted_at) return { k: "todo", label: "Not counted" };
-    if (o.held_qty > 0) return { k: "holds", label: o.last_kind === "return" ? "Returned part, still holds" : "Verified, still holds" };
-    if (o.last_counted_at) return { k: "clear", label: "Clear" };
-    return { k: "todo", label: "Not counted" };
+    if (o.open_qty > 0) return { k: "open", label: "חסר " + o.open_qty };
+    if (o.held_qty > 0 && !o.last_counted_at) return { k: "todo", label: "טרם נספר" };
+    if (o.held_qty > 0) return { k: "holds", label: o.last_kind === "return" ? "החזיר חלק, עדיין מחזיק" : "אומת, עדיין מחזיק" };
+    if (o.last_counted_at) return { k: "clear", label: "זוכה" };
+    return { k: "todo", label: "טרם נספר" };
   }
 
   // "Name x2, Other x6": serial units count one each, bulk lines count their quantity.
@@ -154,7 +154,7 @@
     const m = new Map();
     for (const i of items) m.set(i.name, (m.get(i.name) || 0) + i.n);
     const parts = [...m.entries()].sort((a, b) => b[1] - a[1] || cmp(a[0], b[0])).map(([n, q]) => `${n} x${q}`);
-    return { text: parts.slice(0, max).join(", ") + (parts.length > max ? ` +${parts.length - max} more` : ""), full: parts.join(", ") };
+    return { text: parts.slice(0, max).join(", ") + (parts.length > max ? ` +${parts.length - max} נוספים` : ""), full: parts.join(", ") };
   }
 
   function netRows() {
@@ -174,36 +174,36 @@
     const opt = (k, t) => `<button type="button" data-st="${k}" class="${statusFilter === k ? "on" : ""}">${t}</button>`;
     return `
       <div class="tiles" style="grid-template-columns:repeat(4,1fr)">
-        <div class="tile"><b>${all.length}</b><span>Owners</span></div>
-        <div class="tile"><b>${cnt("clear")}</b><span>Clear</span></div>
-        <div class="tile"><b>${cnt("holds") + cnt("todo")}</b><span>Holding / not counted</span></div>
-        <div class="tile ${cnt("open") ? "bad" : ""}"><b>${cnt("open")}</b><span>Open shortage</span></div>
+        <div class="tile"><b>${all.length}</b><span>בעלים</span></div>
+        <div class="tile"><b>${cnt("clear")}</b><span>זוכו</span></div>
+        <div class="tile"><b>${cnt("holds") + cnt("todo")}</b><span>מחזיקים / טרם נספרו</span></div>
+        <div class="tile ${cnt("open") ? "bad" : ""}"><b>${cnt("open")}</b><span>חוסר פתוח</span></div>
       </div>
-      <div class="tabs" id="stf">${opt("all", "All")}${opt("open", "Short")}${opt("holds", "Holding")}${opt("todo", "Not counted")}${opt("clear", "Clear")}</div>
-      <div class="note">Click an owner to count him or hand his items back.</div>
-      <table class="bd"><thead><tr><th>Owner</th><th>Department</th><th>Holds now</th><th>Open shortage</th><th>Last count</th><th>Status</th></tr></thead><tbody>
+      <div class="tabs" id="stf">${opt("all", "הכול")}${opt("open", "חסר")}${opt("holds", "מחזיקים")}${opt("todo", "טרם נספרו")}${opt("clear", "זוכו")}</div>
+      <div class="note">לחצו על בעלים כדי לספור אותו או לזכות אותו.</div>
+      <table class="bd"><thead><tr><th>בעלים</th><th>מחלקה</th><th>מחזיק כעת</th><th>חוסר פתוח</th><th>ספירה אחרונה</th><th>מצב</th></tr></thead><tbody>
       ${shown.sort((a, b) => cmp(a.o.holder, b.o.holder)).map(({ o, s }) => { const sm = summarize(o.items, 4); return `
         <tr class="go" data-owner="${o.holder_user_id}"><td><a href="clearance.html?owner=${o.holder_user_id}&inv=${invId}"><b>${esc(o.holder)}</b></a><small class="mdep">${esc(o.department)}</small></td><td>${esc(o.department)}</td>
         <td title="${esc(sm.full)}"><b>${o.held_qty}</b> <small style="color:var(--muted)">${esc(sm.text)}</small></td><td class="n ${o.open_qty ? "miss" : ""}">${o.open_qty || ""}</td>
-        <td>${o.last_counted_at ? fmt(o.last_counted_at) + " · " + (o.last_kind === "return" ? "Return" : "Verify") : ""}</td>
-        <td class="st ${s.k}">${esc(s.label)}</td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">No rows</td></tr>`}
+        <td>${o.last_counted_at ? fmt(o.last_counted_at) + " · " + (o.last_kind === "return" ? "זיכוי" : "אימות") : ""}</td>
+        <td class="st ${s.k}">${esc(s.label)}</td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">אין שורות</td></tr>`}
       </tbody></table>`;
   }
 
   function renderShortages() {
     const rows = netRows();
-    if (!rows.length) return '<div class="done">No open shortages</div>';
+    if (!rows.length) return '<div class="done">אין חוסרים פתוחים</div>';
     return rows.map(r => `
-      <div class="group"><div class="ghead"><span>${esc(r.name)}</span><span>missing ${r.missing} · extra ${r.extra} · net ${r.net}</span></div>
-        ${r.short.map(s => `<div class="item"><span>Short at ${esc(s.holder)} <small>${esc(s.department)}</small></span><span class="miss">${s.open_qty}</span></div>`).join("")}
-        ${r.over.map(x => `<div class="item"><span class="over">Extra at ${esc(x.holder)}</span><span class="over">${x.extra_qty}</span></div>`).join("")}
+      <div class="group"><div class="ghead"><span>${esc(r.name)}</span><span>חסר ${r.missing} · עודף ${r.extra} · נטו ${r.net}</span></div>
+        ${r.short.map(s => `<div class="item"><span>חסר אצל ${esc(s.holder)} <small>${esc(s.department)}</small></span><span class="miss">${s.open_qty}</span></div>`).join("")}
+        ${r.over.map(x => `<div class="item"><span class="over">עודף אצל ${esc(x.holder)}</span><span class="over">${x.extra_qty}</span></div>`).join("")}
       </div>`).join("");
   }
 
   function renderLosses() {
     const rows = losses.filter(l => l.lost_qty > 0);
-    if (!rows.length) return '<div class="done">No losses recorded</div>';
-    return `<table><thead><tr><th>Item</th><th>Owner</th><th>Lost</th><th>Found</th><th>Outstanding</th></tr></thead><tbody>` +
+    if (!rows.length) return '<div class="done">אין אובדנים רשומים</div>';
+    return `<table><thead><tr><th>פריט</th><th>בעלים</th><th>אבד</th><th>נמצא</th><th>פתוח</th></tr></thead><tbody>` +
       rows.map(l => `<tr><td>${esc(l.item_type)}</td><td>${esc(l.holder)}</td><td class="n">${l.lost_qty}</td><td class="n">${l.found_qty}</td><td class="n ${l.outstanding_qty ? "miss" : ""}">${l.outstanding_qty}</td></tr>`).join("") + `</tbody></table>`;
   }
 
@@ -223,7 +223,7 @@
   }
 
   async function load() {
-    $("view").innerHTML = '<div class="empty">Loading...</div>';
+    $("view").innerHTML = '<div class="empty">טוען…</div>';
     const a = { p_inventory_id: invId };
     const r = await Promise.all([RS.db.rpc("custody_owner_status", a), RS.db.rpc("custody_open_shortages", a),
                                  RS.db.rpc("custody_open_extras", a), RS.db.rpc("custody_losses", a),
@@ -231,7 +231,7 @@
                                  RS.db.from("users").select("personal_id,first_name,last_name,department"),
                                  RS.db.from("departments").select("dep_id,dep_name")]);
     const bad = r.find(x => x.error);
-    if (bad) { $("view").innerHTML = `<div class="error">Could not load data: ${esc(bad.error.message)}</div>`; return; }
+    if (bad) { $("view").innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(bad.error.message)}</div>`; return; }
     const [st, sh, ex, lo, lines, types, users, deps] = r.map(x => x.data || []);
     [shortages, extras, losses] = [sh, ex, lo];
     // Everyone who holds anything here, plus anyone with a count, with what they hold.
@@ -250,13 +250,13 @@
     }
     owners = [...byId.values()];
     render();
-    $("updated").textContent = "Updated " + new Date().toLocaleTimeString("en-GB");
+    $("updated").textContent = "עודכן " + new Date().toLocaleTimeString("he-IL");
   }
 
 
   // One owner, across every inventory: reached from an owner header or an item on the
   // Inventory and Report pages.
-  const ACTION = {issue:"Issued",return:"Returned",transfer:"Transferred",consume:"Consumed",adjust:"Adjusted",receive:"Received",opening:"Opening",edit:"Edited",loss:"Lost",found:"Found"};
+  const ACTION = {issue:"חתימה",return:"החזרה",transfer:"העברה",consume:"הוצאה מהמלאי",adjust:"תיקון ספירה",receive:"קליטה",opening:"יתרת פתיחה",edit:"עריכה",loss:"אובדן",found:"נמצא"};
   // Short counts come from the count history; movements come from the ledger, which only
   // admins may read, so other roles simply do not get that table.
   async function loadHistory(invIdForHistory) {
@@ -270,13 +270,13 @@
     const c = counts.data || [], l = ledger.data;
     let html = "";
     if (c.length) {
-      html += `<h2>Counts that came up off</h2><table><thead><tr><th>Date</th><th>Kind</th><th>Item</th><th>Expected</th><th>Counted</th><th>Counted by</th></tr></thead><tbody>` +
-        c.map(r => `<tr><td>${fmt(r.counted_at)}</td><td>${r.kind === "return" ? "Return" : "Verify"}</td><td>${esc(r.item_type)}</td><td class="n">${r.expected_qty}</td><td class="n ${r.short_qty ? "miss" : ""}">${r.counted_qty}</td><td>${esc(r.counted_by_name)}</td></tr>`).join("") + `</tbody></table>`;
+      html += `<h2>ספירות שלא תאמו</h2><table><thead><tr><th>תאריך</th><th>סוג</th><th>פריט</th><th>ברישום</th><th>נספר</th><th>נספר על ידי</th></tr></thead><tbody>` +
+        c.map(r => `<tr><td>${fmt(r.counted_at)}</td><td>${r.kind === "return" ? "זיכוי" : "אימות"}</td><td>${esc(r.item_type)}</td><td class="n">${r.expected_qty}</td><td class="n ${r.short_qty ? "miss" : ""}">${r.counted_qty}</td><td>${esc(r.counted_by_name)}</td></tr>`).join("") + `</tbody></table>`;
     }
     if (l) {
-      html += `<details class="track"><summary>Movements (${l.length}${l.length === 100 ? "+" : ""})</summary><div class="inner">` +
-        (l.length ? `<table><thead><tr><th>Date</th><th>Action</th><th>Item</th><th>From</th><th>To</th><th>By</th></tr></thead><tbody>` +
-          l.map(r => `<tr><td>${fmt(r.performed_at)}</td><td>${esc(ACTION[r.action] || r.action)}</td><td>${esc(r.item_type_name)}${r.unit_serial ? " #" + esc(r.unit_serial) : r.qty ? " x" + r.qty : ""}</td><td>${esc(r.from_user_name)}</td><td>${esc(r.to_user_name)}</td><td>${esc(r.performed_by_name)}</td></tr>`).join("") + `</tbody></table>` : '<div class="empty">No movements</div>') +
+      html += `<details class="track"><summary>תנועות (${l.length}${l.length === 100 ? "+" : ""})</summary><div class="inner">` +
+        (l.length ? `<table><thead><tr><th>תאריך</th><th>פעולה</th><th>פריט</th><th>מאת</th><th>אל</th><th>על ידי</th></tr></thead><tbody>` +
+          l.map(r => `<tr><td>${fmt(r.performed_at)}</td><td>${esc(ACTION[r.action] || r.action)}</td><td>${esc(r.item_type_name)}${r.unit_serial ? " #" + esc(r.unit_serial) : r.qty ? " x" + r.qty : ""}</td><td>${esc(r.from_user_name)}</td><td>${esc(r.to_user_name)}</td><td>${esc(r.performed_by_name)}</td></tr>`).join("") + `</tbody></table>` : '<div class="empty">אין תנועות</div>') +
         `</div></details>`;
     }
     const box = $("history"); if (box) box.innerHTML = html;
@@ -290,16 +290,16 @@
 
   async function showOwner() {
     const box = $("ownerView");
-    box.innerHTML = '<div class="empty">Loading...</div>';
+    box.innerHTML = '<div class="empty">טוען…</div>';
     const [invs, who, allShort] = await Promise.all([
       RS.db.from("inventories").select("id,code,label,sort_ord").order("sort_ord"),
       RS.db.from("users").select("first_name,last_name,department").eq("personal_id", ownerId).maybeSingle(),
       RS.db.rpc("custody_open_shortages", { p_inventory_id: null }),
     ]);
-    if (invs.error) { box.innerHTML = `<div class="error">Could not load data: ${esc(invs.error.message)}</div>`; return; }
+    if (invs.error) { box.innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(invs.error.message)}</div>`; return; }
     const name = who.data ? `${who.data.first_name ?? ""} ${who.data.last_name ?? ""}`.trim() : "#" + ownerId;
     try { await loadHoldings(invs.data); } catch (err) { H = null; }
-    if (!H) { box.innerHTML = '<div class="error">Could not load holdings.</div>'; return; }
+    if (!H) { box.innerHTML = '<div class="error">לא ניתן לטעון את הפריטים.</div>'; return; }
     const heldIn = id => H.lines.filter(l => l.inventory_id === id).reduce((n, l) => n + (l.kind === "serial" ? 1 : l.qty), 0);
     const shortIn = id => (allShort.data || []).filter(x => x.holder_user_id === ownerId && x.inventory_id === id).reduce((n, x) => n + x.open_qty, 0);
     const involved = invs.data.filter(i => heldIn(i.id) > 0 || shortIn(i.id) > 0);
@@ -307,10 +307,10 @@
 
     let target = resolveInv(invs.data) || (involved.length === 1 ? involved[0] : null);
     if (!target) {
-      box.innerHTML = `<p class="note"><a href="clearance.html">&lsaquo; All owners</a></p>${head}` + (involved.length
-        ? `<div class="note">He holds items in more than one inventory. Choose where you are working:</div>` +
-          involved.map(i => `<a class="group" style="display:block;text-decoration:none" href="clearance.html?owner=${ownerId}&inv=${i.id}"><div class="ghead"><span>${esc(i.label || i.code)}</span><span>${heldIn(i.id)} held${shortIn(i.id) ? ` · ${shortIn(i.id)} short` : ""}</span></div></a>`).join("")
-        : '<div class="empty">He holds nothing in any inventory.</div>');
+      box.innerHTML = `<p class="note"><a href="clearance.html">&rsaquo; כל הבעלים</a></p>${head}` + (involved.length
+        ? `<div class="note">הוא מחזיק ציוד ביותר ממלאי אחד. בחרו באיזה מלאי לעבוד:</div>` +
+          involved.map(i => `<a class="group" style="display:block;text-decoration:none" href="clearance.html?owner=${ownerId}&inv=${i.id}"><div class="ghead"><span>${esc(i.label || i.code)}</span><span>${heldIn(i.id)} מוחזקים${shortIn(i.id) ? ` · ${shortIn(i.id)} חסרים` : ""}</span></div></a>`).join("")
+        : '<div class="empty">הוא לא מחזיק כלום באף מלאי.</div>');
       return;
     }
 
@@ -325,11 +325,11 @@
     const stt = stateOf(o);
     const others = involved.filter(i => i.id !== target.id);
     box.innerHTML = `
-      <p class="note"><a href="clearance.html?inv=${target.id}">&lsaquo; All owners in ${esc(target.label || target.code)}</a></p>
+      <p class="note"><a href="clearance.html?inv=${target.id}">&rsaquo; כל הבעלים ב-${esc(target.label || target.code)}</a></p>
       ${head}
-      <div class="note"><b>${esc(target.label || target.code)}</b> · ${o.held_qty ? `holds ${o.held_qty} item(s)` : "holds nothing"} · <span class="st ${stt.k}">${esc(stt.label)}</span>${o.last_counted_at ? ` · last count ${fmt(o.last_counted_at)} (${o.last_kind === "return" ? "return" : "verify"})` : ""}</div>
-      ${others.length ? `<div class="note">Also holds in: ${others.map(i => `<a href="clearance.html?owner=${ownerId}&inv=${i.id}">${esc(i.label || i.code)}</a>`).join(", ")}</div>` : ""}
-      ${mine.length ? `<h2>Open shortages</h2>` + mine.map(x => `<div class="item"><span>${esc(x.item_type)}</span><span class="miss">${x.open_qty}</span></div>`).join("") : ""}
+      <div class="note"><b>${esc(target.label || target.code)}</b> · ${o.held_qty ? `מחזיק ${o.held_qty} פריטים` : "לא מחזיק כלום"} · <span class="st ${stt.k}">${esc(stt.label)}</span>${o.last_counted_at ? ` · ספירה אחרונה ${fmt(o.last_counted_at)} (${o.last_kind === "return" ? "זיכוי" : "אימות"})` : ""}</div>
+      ${others.length ? `<div class="note">מחזיק גם ב: ${others.map(i => `<a href="clearance.html?owner=${ownerId}&inv=${i.id}">${esc(i.label || i.code)}</a>`).join(", ")}</div>` : ""}
+      ${mine.length ? `<h2>חוסרים פתוחים</h2>` + mine.map(x => `<div class="item"><span>${esc(x.item_type)}</span><span class="miss">${x.open_qty}</span></div>`).join("") : ""}
       <div id="hand"></div>
       <div id="history"></div>`;
     loadHistory(target.id);
@@ -346,6 +346,9 @@
   let sel = {};            // invId -> { units:Set, qty:{typeId:n} }
   let handMsg = null;
   let mode = "return";    // "return" = hand back, "verify" = count only (bulk items; weapons keep the daily check)
+
+  // verify count is open to admin and the M levels, hand back to admin and M4
+  const canMode = m => m === "verify" ? RS.canVerify : RS.canHandBack;
 
   async function loadHoldings(invs) {
     const [l, t] = await Promise.all([
@@ -372,6 +375,8 @@
   function renderHand() {
     const box = $("hand");
     if (!H) { box.innerHTML = ""; return; }
+    // a role that may only verify opens on Verify count, and never sees a Hand back tab
+    if (!canMode(mode) && canMode(mode === "verify" ? "return" : "verify")) mode = mode === "verify" ? "return" : "verify";
     const msg = handMsg ? `<div class="msg ${handMsg.ok ? "ok" : "err"}">${esc(handMsg.text)}</div>` : "";
     const cards = [...H.invs.values()].map(inv => {
       const mine = H.lines.filter(r => r.inventory_id === inv.id);
@@ -383,36 +388,36 @@
       const mounted = mine.filter(r => r.kind === "bulk" && r.parent_unit_id != null);
       const kids = id => units.filter(u => u.parent_unit_id === id);
       const withIt = id => mounted.filter(m => m.parent_unit_id === id);
-      const dis = RS.canWrite ? "" : "disabled";
-      const hdr = `<div class="item line hdr"><span></span><span class="c">Holds</span><span class="c">${mode === "verify" ? "Counted" : "Returned"}</span></div>`;
+      const dis = canMode(mode) ? "" : "disabled";
+      const hdr = `<div class="item line hdr"><span></span><span class="c">מחזיק</span><span class="c">${mode === "verify" ? "נספר" : "הוחזר"}</span></div>`;
       const rows = hdr + top.sort((a, b) => cmp(nm(a), nm(b))).map(u => `
         <div class="item line"><label><input type="checkbox" data-unit="${inv.id}:${u.id}" ${s.units.has(u.id) ? "checked" : ""} ${dis}>
-          <span>${esc(nm(u))} <small>#${esc(u.serial)}</small>${u.issued_at ? "" : " <small>listed, not handed over</small>"}</span></label>
+          <span>${esc(nm(u))} <small>#${esc(u.serial)}</small>${u.issued_at ? "" : " <small>רשום, לא נמסר</small>"}</span></label>
           <span class="c">1</span><span class="c"></span></div>` +
-        kids(u.id).map(k => `<div class="item child"><span>with it: ${esc(nm(k))} <small>#${esc(k.serial)}</small></span></div>`).join("") +
-        withIt(u.id).map(m => `<div class="item child"><span>with it: ${esc(nm(m))} x${m.qty}</span></div>`).join("")).join("") +
+        kids(u.id).map(k => `<div class="item child"><span>מורכב עליו: ${esc(nm(k))} <small>#${esc(k.serial)}</small></span></div>`).join("") +
+        withIt(u.id).map(m => `<div class="item child"><span>מורכב עליו: ${esc(nm(m))} x${m.qty}</span></div>`).join("")).join("") +
         loose.sort((a, b) => cmp(nm(a), nm(b))).map(b => {
           const q = s.qty[b.item_type_id] ?? 0;
           return `<div class="item line"><label><input type="checkbox" data-bulk="${inv.id}:${b.item_type_id}" ${q > 0 ? "checked" : ""} ${dis}>
-            <span>${esc(nm(b))}${b.issued_qty > 0 && b.issued_qty < b.qty ? ` <small>handed over ${b.issued_qty}</small>` : ""}</span></label>
+            <span>${esc(nm(b))}${b.issued_qty > 0 && b.issued_qty < b.qty ? ` <small>נמסרו ${b.issued_qty}</small>` : ""}</span></label>
             <span class="c">${b.qty}</span>
             <span class="c">${q > 0 ? `<input type="number" min="0" max="${b.qty}" value="${q}" data-qty="${inv.id}:${b.item_type_id}" ${dis}>` : "&mdash;"}</span></div>`;
         }).join("");
       const nUnits = s.units.size, nBulk = Object.values(s.qty).filter(v => v > 0).length;
       return `<div class="group"><div class="ghead"><span>${esc(inv.label || inv.code)}</span><span>${mine.length}</span></div>${rows}
         <div class="acts">${mode === "verify"
-          ? `<button class="btn" data-verify="${inv.id}" ${RS.canWrite ? "" : "disabled"}>Save count: ${nUnits} unit(s) seen, ${nBulk} bulk line(s)</button>`
-          : `<button class="btn" data-hand="${inv.id}" ${RS.canWrite ? "" : "disabled"}>Hand back ${nUnits} unit(s), ${nBulk} bulk line(s)</button>
-          <button class="btn alt" data-unmark="${inv.id}" ${RS.canWrite ? "" : "disabled"} title="He keeps them on his list but they are no longer marked as handed over">Take back, keep listed</button>`}
+          ? `<button class="btn" data-verify="${inv.id}" ${canMode("verify") ? "" : "disabled"}>שמירת ספירה: ${nUnits} פריטים סידוריים נראו, ${nBulk} שורות כמות</button>`
+          : `<button class="btn" data-hand="${inv.id}" ${canMode("return") ? "" : "disabled"}>זיכוי: ${nUnits} פריטים סידוריים, ${nBulk} שורות כמות</button>
+          <button class="btn alt" data-unmark="${inv.id}" ${canMode("return") ? "" : "disabled"} title="נשאר רשום עליו, אבל לא מסומן כנמסר">ביטול מסירה</button>`}
         </div></div>`;
     }).join("");
-    const modeNote = !RS.canWrite ? "View only for your role. Hand-back and counts are for admin and M4."
-      : mode === "verify" ? "Nothing moves. Every item starts ticked as seen. Untick what he did not show, or lower a quantity. Ticked weapons are marked as seen today on the Report page; a lower bulk count is recorded as a shortage."
-      : "Every item starts ticked as returned. Untick what he did not bring, or lower a quantity: whatever is left stays on his name and shows as a shortage.";
-    box.innerHTML = `<h2>${mode === "verify" ? "Verify count" : "Hand back"}</h2>
-      <div class="tabs"><button type="button" data-mode="return" class="${mode === "return" ? "on" : ""}">Hand back</button><button type="button" data-mode="verify" class="${mode === "verify" ? "on" : ""}">Verify count</button></div>
+    const modeNote = !canMode(mode) ? "תצוגה בלבד עבור התפקיד שלך."
+      : mode === "verify" ? "שום דבר לא זז. כל פריט מסומן כנראה. בטלו סימון למה שלא הוצג, או הורידו כמות. נשק מסומן נרשם כדווח היום בדיווח היומי; כמות נמוכה מהרישום נרשמת כחוסר."
+      : "כל פריט מסומן כמוחזר. בטלו סימון למה שלא הובא, או הורידו כמות: מה שנשאר נשאר על שמו ומוצג כחוסר.";
+    box.innerHTML = `<h2>${mode === "verify" ? "אימות ספירה" : "זיכוי"}</h2>
+      <div class="tabs">${RS.canHandBack ? `<button type="button" data-mode="return" class="${mode === "return" ? "on" : ""}">זיכוי</button>` : ""}${RS.canVerify ? `<button type="button" data-mode="verify" class="${mode === "verify" ? "on" : ""}">אימות ספירה</button>` : ""}</div>
       <div class="note">${modeNote}</div>
-      ${msg}${cards || '<div class="empty">He holds nothing.</div>'}`;
+      ${msg}${cards || '<div class="empty">הוא לא מחזיק כלום.</div>'}`;
   }
 
   async function handBack(invId) {
@@ -432,18 +437,18 @@
     const unitIds = [...s.units];
     const left = mine.filter(r => r.kind === "serial" && !s.units.has(r.id) && !(r.parent_unit_id != null && s.units.has(r.parent_unit_id))).length;
     const short = exceptions.reduce((n, e) => n + (loose.find(b => b.item_type_id === e.item_type_id && e.parent_unit_id == null)?.qty ?? 0) - e.counted_qty, 0);
-    const ok = confirm(`Hand back from ${$("ownerName").textContent} in ${inv.label || inv.code}?\n\n` +
-      `Units returned: ${unitIds.length}\nUnits staying on him: ${left}\nBulk lines short: ${exceptions.length}\n\n` +
-      `This changes live data.`);
+    const ok = confirm(`זיכוי של ${$("ownerName").textContent} ב-${inv.label || inv.code}?\n\n` +
+      `פריטים סידוריים שיוחזרו: ${unitIds.length}\nפריטים סידוריים שיישארו עליו: ${left}\nשורות כמות עם חוסר: ${exceptions.length}\n\n` +
+      `זה משנה נתונים אמיתיים.`);
     if (!ok) return;
     handMsg = null; renderHand();
     const c = await RS.db.rpc("save_custody_count", { p_inventory_id: invId, p_holder: ownerId, p_kind: "return", p_counts: exceptions });
-    if (c.error) { handMsg = { ok: false, text: "Count not saved, nothing changed: " + c.error.message }; renderHand(); return; }
+    if (c.error) { handMsg = { ok: false, text: "הספירה לא נשמרה, דבר לא השתנה: " + c.error.message }; renderHand(); return; }
     if (unitIds.length) {
-      const r = await RS.db.rpc("return_batch", { p_from_user: ownerId, p_inventory_id: invId, p_unit_ids: unitIds, p_type_ids: [], p_qtys: [], p_notes: "web hand back" });
-      if (r.error) { handMsg = { ok: false, text: "Bulk items were counted and returned, but the units failed: " + r.error.message }; await showOwner(); return; }
+      const r = await RS.db.rpc("return_batch", { p_from_user: ownerId, p_inventory_id: invId, p_unit_ids: unitIds, p_type_ids: [], p_qtys: [], p_notes: "זיכוי מהאתר" });
+      if (r.error) { handMsg = { ok: false, text: "שורות הכמות נספרו והוחזרו, אך הפריטים הסידוריים נכשלו: " + r.error.message }; await showOwner(); return; }
     }
-    handMsg = { ok: true, text: `Done in ${inv.label || inv.code}: ${unitIds.length} unit(s) returned${exceptions.length ? `, ${exceptions.length} line(s) recorded short` : ""}.` };
+    handMsg = { ok: true, text: `בוצע ב-${inv.label || inv.code}: ${unitIds.length} פריטים סידוריים הוחזרו${exceptions.length ? `, ${exceptions.length} שורות נרשמו כחוסר` : ""}.` };
     await showOwner();
   }
 
@@ -463,26 +468,26 @@
       if (!s.units.has(m.parent_unit_id)) exceptions.push({ item_type_id: m.item_type_id, parent_unit_id: m.parent_unit_id, counted_qty: 0 });
     }
     const seen = [...s.units], notSeen = topUnits.length - seen.length;
-    if (!confirm(`Save a verify count for ${$("ownerName").textContent} in ${inv.label || inv.code}?\n\n` +
-      `Weapons/units marked as seen today: ${seen.length}${notSeen ? ` (${notSeen} not shown)` : ""}\n` +
-      `Bulk lines counted: ${loose.length}, differing from the books: ${exceptions.length}\n\nNothing moves. This writes a permanent count record.`)) return;
+    if (!confirm(`לשמור ספירת אימות של ${$("ownerName").textContent} ב-${inv.label || inv.code}?\n\n` +
+      `פריטים סידוריים שיסומנו כנראו היום: ${seen.length}${notSeen ? ` (${notSeen} לא הוצגו)` : ""}\n` +
+      `שורות כמות שנספרו: ${loose.length}, שונות מהרישום: ${exceptions.length}\n\nדבר לא זז. נרשמת ספירה קבועה.`)) return;
     handMsg = null; renderHand();
     const c = await RS.db.rpc("save_custody_count", { p_inventory_id: invId, p_holder: ownerId, p_kind: "verify", p_counts: exceptions });
-    if (c.error) { handMsg = { ok: false, text: "Count not saved: " + c.error.message }; renderHand(); return; }
+    if (c.error) { handMsg = { ok: false, text: "הספירה לא נשמרה: " + c.error.message }; renderHand(); return; }
     if (seen.length) {
       const today = new Date().toLocaleDateString("en-CA");
       const t = await RS.db.from("daily_report").upsert(seen.map(id => ({ report_date: today, unit_id: id, reporter_id: RS.me.id })), { onConflict: "report_date,unit_id", ignoreDuplicates: true });
-      if (t.error) { handMsg = { ok: false, text: "Bulk count saved, but marking the units as seen failed: " + t.error.message }; await showOwner(); return; }
+      if (t.error) { handMsg = { ok: false, text: "ספירת הכמות נשמרה, אך סימון הפריטים הסידוריים כנראו נכשל: " + t.error.message }; await showOwner(); return; }
     }
-    handMsg = { ok: true, text: `Count saved for ${inv.label || inv.code}: ${seen.length} unit(s) marked as seen${exceptions.length ? `, ${exceptions.length} bulk line(s) differ from the books` : ", bulk items all matched"}.` };
+    handMsg = { ok: true, text: `הספירה נשמרה ב-${inv.label || inv.code}: ${seen.length} פריטים סידוריים סומנו כנראו${exceptions.length ? `, ${exceptions.length} שורות כמות שונות מהרישום` : ", כל שורות הכמות תאמו"}.` };
     await showOwner();
   }
 
   async function takeBackKeepListed(invId) {
     const inv = H.invs.get(invId);
-    if (!confirm(`Mark everything ${$("ownerName").textContent} holds in ${inv.label || inv.code} as not handed over?\nHe stays listed as the holder; nothing moves. No history row is written.\n\nThis changes live data.`)) return;
+    if (!confirm(`לסמן את כל מה ש-${$("ownerName").textContent} מחזיק ב-${inv.label || inv.code} כלא נמסר?\nהוא נשאר רשום כמחזיק; שום דבר לא זז. לא נרשמת שורת היסטוריה.\n\nזה משנה נתונים אמיתיים.`)) return;
     const r = await RS.db.rpc("unmark_holder_issued", { p_inventory_id: invId, p_user: ownerId });
-    handMsg = r.error ? { ok: false, text: r.error.message } : { ok: true, text: `${r.data} item(s) are no longer marked as handed over.` };
+    handMsg = r.error ? { ok: false, text: r.error.message } : { ok: true, text: `${r.data} פריטים כבר לא מסומנים כנמסרו.` };
     await showOwner();
   }
 
@@ -529,7 +534,7 @@
   });
   $("view").addEventListener("click", e => { const b = e.target.closest("[data-st]"); if (b) { statusFilter = b.dataset.st; render(); } });
   $("csv").addEventListener("click", () => {
-    const rows = [["Item", "Owner", "Missing"]].concat(shortages.map(s => [s.item_type, s.holder, s.open_qty]));
+    const rows = [["פריט", "בעלים", "חסר"]].concat(shortages.map(s => [s.item_type, s.holder, s.open_qty]));
     const csv = "\ufeff" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
