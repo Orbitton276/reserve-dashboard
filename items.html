@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>כל הפריטים</title>
+<style>
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#e3e5df; --head:#444C38; --headfg:#fff; --card:#f6f7f4; --sub:rgba(68,76,56,.12); --warn:#b45309; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121412; --fg:#eceee8; --muted:#a3a99a; --line:#2b2f27; --head:#444C38; --headfg:#fff; --card:#1b1e19; --sub:rgba(68,76,56,.35); --warn:#f59e0b; --bad:#e8745f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:16px; }
+  header.site { background:var(--head); color:var(--headfg); }
+  header.site .in { max-width:1000px; margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:24px; height:52px; }
+  header.site .brand { font-weight:700; font-size:18px; margin-inline-end:8px; }
+  header.site a { color:rgba(255,255,255,.75); text-decoration:none; font-size:15px; height:100%; display:flex; align-items:center; border-bottom:3px solid transparent; }
+  header.site a:hover { color:#fff; }
+  header.site a.active { color:#fff; border-bottom-color:#fff; }
+  h1 { font-size:20px; margin:0 0 12px; }
+  .filters { display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; }
+  input, select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  input:focus, select:focus { outline:2px solid var(--head); outline-offset:1px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; max-height:132px; overflow-y:auto; }
+  .chip { border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:999px; padding:5px 12px; font-size:14px; cursor:pointer; }
+  .chip.on { background:var(--head); color:var(--headfg); border-color:var(--head); }
+  .chip small { opacity:.7; margin-inline-start:4px; }
+  .bar { display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px; gap:8px; }
+  .meta { color:var(--muted); font-size:14px; }
+  button.link { background:none; border:0; color:var(--muted); text-decoration:underline; font-size:14px; cursor:pointer; padding:0; }
+  .tiles { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin:12px 0; }
+  .tile { background:var(--head); color:var(--headfg); border-radius:10px; padding:10px 6px; text-align:center; }
+  .tile.key { background:#2f3a52; }
+  .tile b { display:block; font-size:26px; line-height:1.1; }
+  .tile span { font-size:12px; opacity:.9; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:9px 8px; text-align:center; border-bottom:1px solid var(--line); }
+  th { font-size:13px; color:var(--muted); font-weight:600; background:var(--sub); position:sticky; top:0; }
+  th:first-child, td:first-child { text-align:start; }
+  tr.row { cursor:pointer; }
+  tr.row:hover td { background:var(--card); }
+  td.name { font-weight:600; }
+  td.shelf { font-weight:700; }
+  td.warn { color:var(--warn); font-weight:600; }
+  td.zero { color:var(--muted); opacity:.5; }
+  tr.detail td { padding:0; background:var(--card); }
+  .units { padding:6px 12px 10px; display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 16px; font-size:14px; }
+  .units div { display:flex; justify-content:space-between; gap:8px; border-bottom:1px dashed var(--line); padding:3px 0; }
+  .st { font-size:12px; padding:1px 8px; border-radius:6px; white-space:nowrap; align-self:center; }
+  .st.issued { background:var(--head); color:var(--headfg); }
+  .st.listed { background:rgba(245,158,11,.2); color:var(--warn); }
+  .st.store { background:var(--sub); color:var(--muted); }
+  .kids { color:var(--muted); font-size:13px; }
+  .empty, .error { text-align:center; color:var(--muted); padding:32px 0; }
+  .error { color:var(--bad); }
+  @media (max-width:640px) { .filters { grid-template-columns:1fr; } .tiles { grid-template-columns:repeat(2, 1fr); } .tile.key { grid-column:1 / -1; } }
+</style>
+</head>
+<body>
+<header class="site"><div class="in">
+  <span class="brand">מילואים</span>
+  <a href="index.html">מלאי</a>
+  <a href="items.html" class="active">כל הפריטים</a>
+  <a href="dashboard.html">כללי</a>
+  <a href="check.html">דיווח יומי</a>
+  <a href="clearance.html">ציוד לפי בעלים</a>
+</div></header>
+<main>
+  <h1>כל הפריטים</h1>
+  <div class="filters">
+    <input id="q" type="search" placeholder="חיפוש פריט או מספר סידורי" autocomplete="off">
+    <select id="dep" aria-label="מחלקה"><option value="">כל המחלקות</option></select>
+    <select id="inv" aria-label="מלאי"><option value="">כל המלאים</option></select>
+  </div>
+  <div class="chips" id="cats"></div>
+  <div class="chips" id="chips"></div>
+  <div class="bar">
+    <span class="meta"><span id="meta"></span> · <span id="updated"></span></span>
+    <button class="link" id="reset" type="button">נקה סינון</button>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div id="list"><div class="empty">טוען…</div></div>
+  <p class="meta" id="note"></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // Reads the signed-in view inventory_holdings_v (same source as the other pages).
+  const db = window.supabase.createClient("https://bqibfhhhthfzawzkpsdr.supabase.co", "sb_publishable_NYRPrV7chJz-X5MTfyTr9Q_caqJ7A4v");
+
+  const NO_INV = "אחר";
+  const $ = id => document.getElementById(id);
+  const listEl = $("list"), tilesEl = $("tiles"), chipsEl = $("chips"), metaEl = $("meta"), noteEl = $("note");
+  const qEl = $("q"), depEl = $("dep"), invEl = $("inv"), updatedEl = $("updated");
+  let rows = [];
+  let picked = new Set();      // chosen item names (empty = all)
+  let pickedCat = new Set();   // chosen category labels (empty = all)
+  let catOf = new Map();       // item name -> category label (only items that have one)
+  const catsEl = $("cats");
+  let open = new Set();        // expanded item names
+
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const cmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), "he");
+
+  function fillSelect(el, values) {
+    const cur = el.value, first = el.options[0];
+    el.innerHTML = ""; el.appendChild(first);
+    [...new Set(values.filter(Boolean))].sort(cmp).forEach(v => {
+      const o = document.createElement("option"); o.value = v; o.textContent = v; el.appendChild(o);
+    });
+    if ([...el.options].some(o => o.value === cur)) el.value = cur;
+  }
+
+  // Three states, same meaning as the dashboard:
+  //   issued = in the person's hands
+  //   listed = registered to a person, never handed over (physically in store)
+  //   store  = registered to nobody (in store)
+  //   expect on shelf = listed + store = total - issued
+  const stateOf = r => r.custody === "issued" ? "issued" : r.custody === "store" ? "store" : "listed";
+  const zero = () => ({ total: 0, issued: 0, listed: 0, store: 0 });
+  const add = (t, r) => { const n = Number(r.quantity) || 0; t.total += n; t[stateOf(r)] += n; };
+  const shelf = t => t.listed + t.store;
+
+  const STATE_LABEL = { issued: "אצל הבעלים", listed: "רשום, לא נמסר", store: "במחסן" };
+
+  function baseFilter() {
+    const q = qEl.value.trim().toLowerCase(), dep = depEl.value, inv = invEl.value;
+    return rows.filter(r => {
+      if (dep && r.owner_dep !== dep) return false;
+      if (inv && (r.inventory_label ?? NO_INV) !== inv) return false;
+      if (pickedCat.size && !pickedCat.has(catOf.get(r.item_name))) return false;
+      if (q.length > 1 && ![r.item_name, r.serial].some(v => String(v ?? "").toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  function renderCats() {
+    // Counts ignore the category choice itself, so you can add another category.
+    const q = qEl.value.trim().toLowerCase(), dep = depEl.value, inv = invEl.value;
+    const counts = new Map();
+    for (const r of rows) {
+      const c = catOf.get(r.item_name); if (!c) continue;
+      if (dep && r.owner_dep !== dep) continue;
+      if (inv && (r.inventory_label ?? NO_INV) !== inv) continue;
+      if (q.length > 1 && ![r.item_name, r.serial].some(v => String(v ?? "").toLowerCase().includes(q))) continue;
+      counts.set(c, (counts.get(c) || 0) + (Number(r.quantity) || 0));
+    }
+    catsEl.innerHTML = [...counts.entries()].sort((a, b) => b[1] - a[1] || cmp(a[0], b[0]))
+      .map(([n, c]) => `<button type="button" class="chip${pickedCat.has(n) ? " on" : ""}" data-c="${esc(n)}">${esc(n)}<small>${c}</small></button>`).join("");
+  }
+
+  function renderChips(base) {
+    // Counts follow the other filters, so a chip never promises rows that are not there.
+    const counts = new Map();
+    for (const r of base) counts.set(r.item_name ?? "—", (counts.get(r.item_name ?? "—") || 0) + (Number(r.quantity) || 0));
+    for (const p of picked) if (!counts.has(p)) counts.set(p, 0);
+    chipsEl.innerHTML = [...counts.entries()].sort((a, b) => b[1] - a[1] || cmp(a[0], b[0]))
+      .map(([n, c]) => `<button type="button" class="chip${picked.has(n) ? " on" : ""}" data-n="${esc(n)}">${esc(n)}<small>${c}</small></button>`).join("");
+  }
+
+  function renderItems(filtered) {
+    const by = new Map();
+    for (const r of filtered) {
+      const n = r.item_name ?? "—";
+      if (!by.has(n)) by.set(n, { t: zero(), rows: [] });
+      add(by.get(n).t, r); by.get(n).rows.push(r);
+    }
+    const kids = new Map();   // parent row -> child names
+    for (const r of rows) if (r.parent_row_id) { if (!kids.has(r.parent_row_id)) kids.set(r.parent_row_id, []); kids.get(r.parent_row_id).push(r.item_name); }
+    const num = (v, cls = "") => `<td class="${v ? cls : "zero"}">${v}</td>`;
+    const body = [...by.entries()].filter(([, g]) => g.t.total > 0)
+      .sort((a, b) => shelf(b[1].t) - shelf(a[1].t) || b[1].t.total - a[1].t.total || cmp(a[0], b[0]))
+      .map(([name, g]) => {
+        const isOpen = open.has(name);
+        const units = !isOpen ? "" : `<tr class="detail"><td colspan="6"><div class="units">${
+          g.rows.slice().sort((a, b) => cmp(stateOf(a), stateOf(b)) || cmp(a.owner_name, b.owner_name)).map(r => {
+            const k = kids.get(r.row_id);
+            return `<div><span>${esc(r.serial ? "#" + r.serial : "x" + r.quantity)}${r.quantity > 1 && r.serial ? " x" + r.quantity : ""}
+              <span class="kids">${r.owner_name ? " · " + esc(r.owner_name) : ""}${k ? " · + " + esc(k.join(", ")) : ""}${r.attached_to ? " · על " + esc(r.attached_to) : ""}</span></span>
+              <span class="st ${stateOf(r)}">${STATE_LABEL[stateOf(r)]}</span></div>`;
+          }).join("")}</div></td></tr>`;
+        return `<tr class="row" data-n="${esc(name)}"><td class="name">${isOpen ? "▾" : "▸"} ${esc(name)}</td><td>${g.t.total}</td>
+          ${num(g.t.issued)}${num(g.t.listed, "warn")}${num(g.t.store)}<td class="shelf">${shelf(g.t)}</td></tr>${units}`;
+      }).join("");
+    listEl.innerHTML = body
+      ? `<table><thead><tr><th>פריט</th><th>סה״כ</th><th>אצל הבעלים</th><th>רשום, לא נמסר</th><th>במחסן ללא בעלים</th><th>צפוי במחסן</th></tr></thead><tbody>${body}</tbody></table>`
+      : '<div class="empty">אין מה להציג</div>';
+  }
+
+  function render() {
+    const base = baseFilter();
+    renderCats();
+    renderChips(base);
+    const filtered = picked.size ? base.filter(r => picked.has(r.item_name ?? "—")) : base;
+    const all = zero(); filtered.forEach(r => add(all, r));
+    tilesEl.innerHTML = [
+      [all.total, "סה״כ בשירות", ""], [all.issued, "אצל הבעלים", ""], [all.listed, "רשום, לא נמסר", ""],
+      [all.store, "במחסן ללא בעלים", ""], [shelf(all), "צפוי במחסן", "key"]
+    ].map(([n, l, c]) => `<div class="tile ${c}"><b>${n}</b><span>${l}</span></div>`).join("");
+    metaEl.textContent = picked.size ? `${picked.size} סוגים נבחרו` : "כל הסוגים";
+    noteEl.textContent = depEl.value ? "פריטים שלא רשומים על אף אחד אינם שייכים למחלקה, ולכן אינם נספרים כשנבחרה מחלקה." : "צפוי במחסן = רשום ולא נמסר + במחסן ללא בעלים = סה״כ פחות מה שאצל הבעלים.";
+    renderItems(filtered);
+  }
+
+  // Category comes from v2.item_types (needs the sign-in). Items with no category simply get none,
+  // so they drop out as soon as a category is chosen. If this read fails the page works without it.
+  async function loadCategories() {
+    try {
+      await window.RS?.first;
+      const [t, c] = await Promise.all([
+        window.RS.db.from("item_types").select("name,category").not("category", "is", null),
+        window.RS.db.from("item_categories").select("code,label")
+      ]);
+      if (t.error || c.error) return;
+      const label = new Map(c.data.map(x => [x.code, x.label]));
+      catOf = new Map(t.data.filter(x => label.has(x.category)).map(x => [x.name, label.get(x.category)]));
+    } catch { /* keep the previous map */ }
+  }
+
+  async function load(isRefresh) {
+    const all = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await (window.RS?.sb ?? db).from("inventory_holdings_v").select("*").order("row_id").range(from, from + 999);
+      if (error) {
+        if (isRefresh) { updatedEl.textContent = "העדכון נכשל"; return; }
+        listEl.innerHTML = `<div class="error">לא ניתן לטעון נתונים: ${esc(error.message)}</div>`; return;
+      }
+      all.push(...data);
+      if (data.length < 1000) break;
+    }
+    rows = all;
+    await loadCategories();
+    fillSelect(depEl, rows.map(r => r.owner_dep));
+    fillSelect(invEl, rows.map(r => r.inventory_label ?? NO_INV));
+    render();
+    updatedEl.textContent = `עודכן ${new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+
+  catsEl.addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const n = b.dataset.c; pickedCat.has(n) ? pickedCat.delete(n) : pickedCat.add(n); render();
+  });
+  chipsEl.addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const n = b.dataset.n; picked.has(n) ? picked.delete(n) : picked.add(n); render();
+  });
+  listEl.addEventListener("click", e => {
+    const tr = e.target.closest("tr.row"); if (!tr) return;
+    const k = tr.dataset.n;
+    open.has(k) ? open.delete(k) : open.add(k); render();
+  });
+  [qEl].forEach(el => el.addEventListener("input", render));
+  [depEl, invEl].forEach(el => el.addEventListener("change", render));
+  $("reset").addEventListener("click", () => { qEl.value = ""; depEl.value = ""; invEl.value = ""; picked.clear(); pickedCat.clear(); render(); });
+  // The view is for signed-in users only, so load when the sign-in is known (and again after a
+  // later sign-in), not at page open. Using the shared sign-in client also avoids a stale session.
+  let loading = false;
+  async function loadOnce(isRefresh) {
+    if (loading || !window.RS?.session) return;
+    loading = true;
+    try { await load(isRefresh); } finally { loading = false; }
+  }
+  window.addEventListener("load", () => {
+    window.RS.onChange(s => { if (s) loadOnce(); else { rows = []; render(); } });
+    window.RS.first.then(() => loadOnce());
+  });
+  setInterval(() => { if (!document.hidden) loadOnce(true); }, 60000);
+</script>
+<script src="auth.js"></script>
+</body>
+</html>
